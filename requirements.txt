@@ -1,0 +1,31 @@
+# Core Dependencies
+streamlit>=1.28.0
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+
+# Scheduling & Automation
+schedule>=1.2.0
+
+# Visualization (for admin dashboard)
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Environment & Configuration
+python-dotenv>=1.0.0
+
+# HTTP Requests (for future API integration)
+requests>=2.31.0
+
+# Additional for development
+ipython>=8.12.0
+jupyter>=1.0.0
+
+# Testing (optional)
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Security (optional)
+cryptography>=41.0.0
+
+requests>=2.31.0
