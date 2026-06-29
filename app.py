@@ -12,6 +12,9 @@ from datetime import datetime
 import os
 import pickle
 
+# Import Google Sheets feedback module
+from feedback_storage import save_feedback_sheet, get_feedback_sheet, get_feedback_count_sheet
+
 st.set_page_config(
     page_title="ShopShield AI",
     page_icon="🛡️",
@@ -129,71 +132,6 @@ def save_feedback_local(feedback_entry):
         return False
 
 
-def save_feedback_cloud(feedback_entry):
-    """Save feedback to GitHub for deployed app."""
-    try:
-        import requests
-        import base64
-        from io import StringIO
-        
-        GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN")
-        if not GITHUB_TOKEN:
-            print("GitHub token not found")
-            return False
-        
-        REPO_OWNER = st.secrets.get("REPO_OWNER", "your-username")
-        REPO_NAME = st.secrets.get("REPO_NAME", "your-repo-name")
-        FILE_PATH = "data/user_feedback.csv"
-        BRANCH = "main"
-        
-        url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
-        headers = {
-            "Authorization": f"token {GITHUB_TOKEN}",
-            "Accept": "application/vnd.github.v3+json"
-        }
-        
-        try:
-            from url_analyzer import extract_features_from_url
-            features, _ = extract_features_from_url(feedback_entry["url"])
-            feature_dict = features.iloc[0].to_dict()
-            feedback_entry.update(feature_dict)
-        except Exception as e:
-            print(f"Error extracting features: {e}")
-        
-        response = requests.get(url, headers=headers)
-        df = pd.DataFrame()
-        
-        if response.status_code == 200:
-            content = response.json()
-            decoded = base64.b64decode(content['content']).decode('utf-8')
-            df = pd.read_csv(StringIO(decoded))
-            sha = content['sha']
-        else:
-            sha = None
-        
-        new_df = pd.DataFrame([feedback_entry])
-        df = pd.concat([df, new_df], ignore_index=True)
-        
-        csv_buffer = StringIO()
-        df.to_csv(csv_buffer, index=False)
-        content_encoded = base64.b64encode(csv_buffer.getvalue().encode('utf-8')).decode('utf-8')
-        
-        payload = {
-            "message": "Update user feedback",
-            "content": content_encoded,
-            "branch": BRANCH
-        }
-        if sha:
-            payload["sha"] = sha
-        
-        response = requests.put(url, headers=headers, json=payload)
-        return response.status_code == 200
-        
-    except Exception as e:
-        print(f"Error saving feedback to GitHub: {e}")
-        return False
-
-
 def save_feedback(url, risk, verdict, comment=""):
     """Save user feedback for model improvement."""
     try:
@@ -205,14 +143,23 @@ def save_feedback(url, risk, verdict, comment=""):
             "timestamp": datetime.now().isoformat()
         }
         
-        if os.getenv("STREAMLIT_CLOUD"):
-            return save_feedback_cloud(feedback_entry)
-        else:
-            return save_feedback_local(feedback_entry)
+        # Use Google Sheets for both local and deployed (works everywhere)
+        return save_feedback_sheet(url, risk, verdict, comment)
             
     except Exception as e:
         print(f"Error saving feedback: {e}")
-        return False
+        # Fallback to local if Google Sheets fails
+        try:
+            feedback_entry = {
+                "url": url,
+                "risk_score": risk,
+                "verdict": verdict,
+                "comment": comment,
+                "timestamp": datetime.now().isoformat()
+            }
+            return save_feedback_local(feedback_entry)
+        except:
+            return False
 
 
 def analyze_url(url):
@@ -243,6 +190,37 @@ def analyze_url(url):
         risk = max(risk, manual_risk)
     
     return min(100.0, float(risk))
+
+
+def get_feedback_count():
+    """Get number of feedback entries from Google Sheets."""
+    try:
+        return get_feedback_count_sheet()
+    except:
+        # Fallback to local if Google Sheets fails
+        feedback_file = "data/user_feedback.csv"
+        if os.path.exists(feedback_file) and os.path.getsize(feedback_file) > 0:
+            try:
+                df = pd.read_csv(feedback_file)
+                return len(df)
+            except:
+                pass
+        return 0
+
+
+def get_feedback_data():
+    """Get all feedback data from Google Sheets."""
+    try:
+        return get_feedback_sheet()
+    except:
+        # Fallback to local
+        feedback_file = "data/user_feedback.csv"
+        if os.path.exists(feedback_file) and os.path.getsize(feedback_file) > 0:
+            try:
+                return pd.read_csv(feedback_file)
+            except:
+                pass
+        return pd.DataFrame()
 
 
 with st.sidebar:
@@ -277,22 +255,20 @@ with st.sidebar:
         if analyze:
             st.session_state.show_results = True
         
-        # Feedback Count Display
+        # Feedback Count Display (from Google Sheets)
         st.divider()
-        feedback_file = "data/user_feedback.csv"
-        if os.path.exists(feedback_file) and os.path.getsize(feedback_file) > 0:
-            try:
-                df = pd.read_csv(feedback_file)
-                feedback_count = len(df)
-                st.info(f"📊 Feedback entries: {feedback_count}")
+        try:
+            feedback_count = get_feedback_count()
+            if feedback_count > 0:
+                st.info(f"Feedback entries: {feedback_count}")
                 if feedback_count >= 5:
-                    st.success("✅ Ready for auto-retraining!")
+                    st.success("Ready for auto-retraining!")
                 else:
-                    st.warning(f"⏳ Need {5 - feedback_count} more entries for retraining")
-            except Exception as e:
-                st.caption("Feedback system active")
-        else:
-            st.caption("No feedback collected yet")
+                    st.warning(f"Need {5 - feedback_count} more entries for retraining")
+            else:
+                st.caption("No feedback collected yet")
+        except:
+            st.caption("Feedback system active")
         
         st.caption("Detects phishing attempts using machine learning and heuristic analysis.")
 
@@ -466,6 +442,10 @@ if st.session_state.page == 'main':
                         st.session_state.feedback_success = True
                         st.session_state.feedback_message = "Thank you for your feedback!"
                         st.rerun()
+                    else:
+                        st.session_state.feedback_success = False
+                        st.session_state.feedback_message = "Error saving feedback. Please try again."
+                        st.rerun()
             
             with col2:
                 if st.button("Yes - Phishing", use_container_width=True):
@@ -473,12 +453,20 @@ if st.session_state.page == 'main':
                         st.session_state.feedback_success = True
                         st.session_state.feedback_message = "Thank you for your feedback!"
                         st.rerun()
+                    else:
+                        st.session_state.feedback_success = False
+                        st.session_state.feedback_message = "Error saving feedback. Please try again."
+                        st.rerun()
             
             with col3:
                 if st.button("Not Sure", use_container_width=True):
                     if save_feedback(current_url, risk, "uncertain"):
                         st.session_state.feedback_success = True
                         st.session_state.feedback_message = "Feedback recorded as uncertain."
+                        st.rerun()
+                    else:
+                        st.session_state.feedback_success = False
+                        st.session_state.feedback_message = "Error saving feedback. Please try again."
                         st.rerun()
         
         st.divider()
@@ -531,19 +519,19 @@ else:
         
         st.divider()
         
-        feedback_file = "data/user_feedback.csv"
-        total = phishing = safe = uncertain = 0
-        
-        if os.path.exists(feedback_file) and os.path.getsize(feedback_file) > 0:
-            try:
-                df = pd.read_csv(feedback_file)
-                total = len(df)
-                if 'verdict' in df.columns:
-                    phishing = len(df[df['verdict'] == 'phishing'])
-                    safe = len(df[df['verdict'] == 'safe'])
-                    uncertain = len(df[df['verdict'] == 'uncertain'])
-            except Exception:
-                pass
+        # Get feedback from Google Sheets
+        try:
+            df_feedback = get_feedback_data()
+            total = len(df_feedback)
+            
+            if total > 0 and 'verdict' in df_feedback.columns:
+                phishing = len(df_feedback[df_feedback['verdict'] == 'phishing'])
+                safe = len(df_feedback[df_feedback['verdict'] == 'safe'])
+                uncertain = len(df_feedback[df_feedback['verdict'] == 'uncertain'])
+            else:
+                phishing = safe = uncertain = 0
+        except:
+            total = phishing = safe = uncertain = 0
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
@@ -566,24 +554,23 @@ else:
         
         st.subheader("Recent Feedback")
         
-        if os.path.exists(feedback_file) and os.path.getsize(feedback_file) > 0:
+        if total > 0:
             try:
-                df = pd.read_csv(feedback_file)
-                if len(df) > 0:
-                    cols = ['url', 'risk_score', 'verdict', 'timestamp']
-                    available = [c for c in cols if c in df.columns]
-                    if available:
-                        st.dataframe(df.tail(10)[available], use_container_width=True)
+                display_cols = ['url', 'risk_score', 'verdict', 'timestamp']
+                available = [c for c in display_cols if c in df_feedback.columns]
+                if available:
+                    st.dataframe(df_feedback.tail(10)[available], use_container_width=True)
                 else:
-                    st.info("No feedback data")
-            except Exception:
-                st.info("No feedback data")
+                    st.info("No feedback data available")
+            except:
+                st.info("No feedback data available")
         else:
-            st.info("No feedback data")
+            st.info("No feedback collected yet")
         
         st.divider()
         st.subheader("Model Information")
         
+        # Check if model exists locally or will be loaded from Hugging Face
         model_path = "models/url_phishing_model.pkl"
         if os.path.exists(model_path):
             try:
@@ -604,7 +591,7 @@ else:
             except Exception:
                 st.warning("Could not load model")
         else:
-            st.warning("No model found")
+            st.info("Model will be loaded from Hugging Face Hub on first use")
         
         st.divider()
         if st.button("Force Retrain", use_container_width=True):
