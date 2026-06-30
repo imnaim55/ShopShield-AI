@@ -21,6 +21,15 @@ st.set_page_config(
     layout="wide",
 )
 
+# Add this to app.py to debug
+if os.getenv("STREAMLIT_CLOUD"):
+    st.write("Running on Streamlit Cloud")
+    st.write("Secrets keys:", st.secrets.keys())
+    if "google_credentials" in st.secrets:
+        st.write("✅ google_credentials found!")
+    else:
+        st.write("❌ google_credentials not found!")
+
 st.markdown("""
 <style>
 section[data-testid="stSidebar"] {
