@@ -102,14 +102,6 @@ def save_feedback_local(feedback_entry):
         feedback_file = "data/user_feedback.csv"
         os.makedirs("data", exist_ok=True)
         
-        try:
-            from url_analyzer import extract_features_from_url
-            features, _ = extract_features_from_url(feedback_entry["url"])
-            feature_dict = features.iloc[0].to_dict()
-            feedback_entry.update(feature_dict)
-        except Exception as e:
-            print(f"Error extracting features: {e}")
-        
         if os.path.exists(feedback_file) and os.path.getsize(feedback_file) > 0:
             try:
                 df = pd.read_csv(feedback_file)
@@ -131,14 +123,20 @@ def save_feedback_local(feedback_entry):
 
 def save_feedback(url, risk, verdict, comment=""):
     try:
-        feedback_entry = {
-            "url": url,
-            "risk_score": risk,
-            "verdict": verdict,
-            "comment": comment,
-            "timestamp": datetime.now().isoformat()
-        }
-        return save_feedback_sheet(url, risk, verdict, comment)
+        # Try Google Sheets first
+        result = save_feedback_sheet(url, risk, verdict, comment)
+        if result:
+            return True
+        else:
+            # Fallback to local if Google Sheets fails
+            feedback_entry = {
+                "url": url,
+                "risk_score": risk,
+                "verdict": verdict,
+                "comment": comment,
+                "timestamp": datetime.now().isoformat()
+            }
+            return save_feedback_local(feedback_entry)
     except Exception as e:
         print(f"Error saving feedback: {e}")
         try:
