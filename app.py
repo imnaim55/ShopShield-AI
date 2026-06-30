@@ -122,19 +122,15 @@ def save_feedback_local(feedback_entry):
 
 
 def save_feedback(url, risk, verdict, comment=""):
-    """Save user feedback."""
     try:
-        # Try Google Sheets first
         result = save_feedback_sheet(url, risk, verdict, comment)
         if result:
             st.session_state.feedback_success = True
             st.session_state.feedback_message = "Thank you for your feedback!"
-            return True
         else:
-            # Fallback to local
             st.session_state.feedback_success = False
             st.session_state.feedback_message = "Error saving feedback. Please try again."
-            return False
+        return result
     except Exception as e:
         print(f"Error: {e}")
         return False
