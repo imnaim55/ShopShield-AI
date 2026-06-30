@@ -20,23 +20,28 @@ def get_credentials():
     2. Streamlit Secrets for deployed app
     """
     try:
+        # Check if running on Streamlit Cloud
+        is_cloud = os.getenv("STREAMLIT_CLOUD") or os.getenv("STREAMLIT_SHARING")
+        
         # First try: Local file (for development)
-        if os.path.exists("credentials.json"):
+        if not is_cloud and os.path.exists("credentials.json"):
             print("✅ Using local credentials.json")
             return ServiceAccountCredentials.from_json_keyfile_name("credentials.json", SCOPE)
         
         # Second try: Streamlit Secrets (for deployed app)
         try:
+            print("🔍 Checking for secrets...")
+            
             if "google_credentials" in st.secrets:
-                print("✅ Using Streamlit Secrets")
+                print("✅ google_credentials found in secrets!")
                 creds_dict = dict(st.secrets["google_credentials"])
                 return ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
             else:
-                print("⚠️ google_credentials not found in secrets")
+                print("❌ google_credentials NOT found in secrets")
+                print(f"   Available secrets: {list(st.secrets.keys())}")
         except Exception as e:
-            print(f"⚠️ Error reading secrets: {e}")
+            print(f"❌ Error reading secrets: {e}")
         
-        # If neither works
         print("❌ No credentials found!")
         return None
         
@@ -76,10 +81,7 @@ def save_feedback_sheet(url, risk, verdict, comment=""):
             print("❌ Could not get sheet")
             return False
         
-        # Create row
         row = [url, risk, verdict, comment, datetime.now().isoformat()]
-        
-        # Append to sheet
         sheet.append_row(row)
         print(f"✅ Feedback saved: {url} -> {verdict}")
         return True
