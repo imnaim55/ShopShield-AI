@@ -22,7 +22,7 @@ SAFE_DOMAINS = [
     'walmart.com', 'target.com', 'bestbuy.com', 'costco.com',
     'youtube.com', 'reddit.com', 'twitter.com', 'linkedin.com',
     'facebook.com', 'instagram.com', 'python.org', 'wikipedia.org',
-    'dropbox.com', 'salesforce.com', 'adobe.com', 'oracle.com'
+    'dropbox.com', 'salesforce.com', 'adobe.com', 'oracle.com', 'nykaa.com'
 ]
 
 SUSPICIOUS_TLDS = [
