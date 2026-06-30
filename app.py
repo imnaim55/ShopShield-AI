@@ -4,6 +4,7 @@ Developed by Naim Shaikh
 """
 
 from url_analyzer import predict_url_risk
+from feedback_storage import save_feedback_sheet, get_feedback_sheet, get_feedback_count_sheet
 import streamlit as st
 import time
 import re
@@ -12,23 +13,11 @@ from datetime import datetime
 import os
 import pickle
 
-# Import Google Sheets feedback module
-from feedback_storage import save_feedback_sheet, get_feedback_sheet, get_feedback_count_sheet
-
 st.set_page_config(
     page_title="ShopShield AI",
     page_icon="🛡️",
     layout="wide",
 )
-
-# Add this to app.py to debug
-if os.getenv("STREAMLIT_CLOUD"):
-    st.write("Running on Streamlit Cloud")
-    st.write("Secrets keys:", st.secrets.keys())
-    if "google_credentials" in st.secrets:
-        st.write("✅ google_credentials found!")
-    else:
-        st.write("❌ google_credentials not found!")
 
 st.markdown("""
 <style>
@@ -109,7 +98,6 @@ if 'admin_logged_in' not in st.session_state:
 
 
 def save_feedback_local(feedback_entry):
-    """Save feedback locally."""
     try:
         feedback_file = "data/user_feedback.csv"
         os.makedirs("data", exist_ok=True)
@@ -142,7 +130,6 @@ def save_feedback_local(feedback_entry):
 
 
 def save_feedback(url, risk, verdict, comment=""):
-    """Save user feedback for model improvement."""
     try:
         feedback_entry = {
             "url": url,
@@ -151,13 +138,9 @@ def save_feedback(url, risk, verdict, comment=""):
             "comment": comment,
             "timestamp": datetime.now().isoformat()
         }
-        
-        # Use Google Sheets for both local and deployed (works everywhere)
         return save_feedback_sheet(url, risk, verdict, comment)
-            
     except Exception as e:
         print(f"Error saving feedback: {e}")
-        # Fallback to local if Google Sheets fails
         try:
             feedback_entry = {
                 "url": url,
@@ -172,7 +155,6 @@ def save_feedback(url, risk, verdict, comment=""):
 
 
 def analyze_url(url):
-    """Analyze URL for phishing risk."""
     risk = predict_url_risk(url)
     
     if risk is None or not isinstance(risk, (int, float)):
@@ -202,11 +184,9 @@ def analyze_url(url):
 
 
 def get_feedback_count():
-    """Get number of feedback entries from Google Sheets."""
     try:
         return get_feedback_count_sheet()
     except:
-        # Fallback to local if Google Sheets fails
         feedback_file = "data/user_feedback.csv"
         if os.path.exists(feedback_file) and os.path.getsize(feedback_file) > 0:
             try:
@@ -218,11 +198,9 @@ def get_feedback_count():
 
 
 def get_feedback_data():
-    """Get all feedback data from Google Sheets."""
     try:
         return get_feedback_sheet()
     except:
-        # Fallback to local
         feedback_file = "data/user_feedback.csv"
         if os.path.exists(feedback_file) and os.path.getsize(feedback_file) > 0:
             try:
@@ -264,7 +242,6 @@ with st.sidebar:
         if analyze:
             st.session_state.show_results = True
         
-        # Feedback Count Display (from Google Sheets)
         st.divider()
         try:
             feedback_count = get_feedback_count()
@@ -528,7 +505,6 @@ else:
         
         st.divider()
         
-        # Get feedback from Google Sheets
         try:
             df_feedback = get_feedback_data()
             total = len(df_feedback)
@@ -579,7 +555,6 @@ else:
         st.divider()
         st.subheader("Model Information")
         
-        # Check if model exists locally or will be loaded from Hugging Face
         model_path = "models/url_phishing_model.pkl"
         if os.path.exists(model_path):
             try:

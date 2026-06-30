@@ -14,31 +14,22 @@ SHEET_NAME = "ShopShield Feedback"
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 def get_credentials():
-    """
-    Get credentials from either:
-    1. Local file (credentials.json) for development
-    2. Streamlit Secrets for deployed app
-    """
+    """Get credentials from local file or Streamlit secrets."""
     try:
         # Check if running on Streamlit Cloud
         is_cloud = os.getenv("STREAMLIT_CLOUD") or os.getenv("STREAMLIT_SHARING")
         
-        # First try: Local file (for development)
+        # Local development - use credentials.json
         if not is_cloud and os.path.exists("credentials.json"):
             print("✅ Using local credentials.json")
             return ServiceAccountCredentials.from_json_keyfile_name("credentials.json", SCOPE)
         
-        # Second try: Streamlit Secrets (for deployed app)
+        # Deployed app - use Streamlit secrets
         try:
-            print("🔍 Checking for secrets...")
-            
             if "google_credentials" in st.secrets:
-                print("✅ google_credentials found in secrets!")
+                print("✅ Using Streamlit Secrets")
                 creds_dict = dict(st.secrets["google_credentials"])
                 return ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
-            else:
-                print("❌ google_credentials NOT found in secrets")
-                print(f"   Available secrets: {list(st.secrets.keys())}")
         except Exception as e:
             print(f"❌ Error reading secrets: {e}")
         
@@ -50,27 +41,18 @@ def get_credentials():
         return None
 
 def get_sheet():
-    """Get the Google Sheet with error handling."""
+    """Get Google Sheet."""
     try:
         creds = get_credentials()
         if creds is None:
-            print("❌ Could not load credentials")
             return None
         
         client = gspread.authorize(creds)
-        print("✅ Authorized successfully")
+        sheet = client.open(SHEET_NAME).sheet1
+        return sheet
         
-        try:
-            sheet = client.open(SHEET_NAME).sheet1
-            print(f"✅ Opened sheet: {SHEET_NAME}")
-            return sheet
-        except gspread.SpreadsheetNotFound:
-            print(f"❌ Spreadsheet '{SHEET_NAME}' not found!")
-            print("   Make sure you created it and shared with the service account")
-            return None
-            
     except Exception as e:
-        print(f"❌ Error connecting to Google Sheets: {e}")
+        print(f"❌ Error: {e}")
         return None
 
 def save_feedback_sheet(url, risk, verdict, comment=""):
@@ -78,16 +60,14 @@ def save_feedback_sheet(url, risk, verdict, comment=""):
     try:
         sheet = get_sheet()
         if sheet is None:
-            print("❌ Could not get sheet")
             return False
         
         row = [url, risk, verdict, comment, datetime.now().isoformat()]
         sheet.append_row(row)
-        print(f"✅ Feedback saved: {url} -> {verdict}")
         return True
         
     except Exception as e:
-        print(f"❌ Error saving feedback: {e}")
+        print(f"❌ Error saving: {e}")
         return False
 
 def get_feedback_sheet():
@@ -103,7 +83,7 @@ def get_feedback_sheet():
         return pd.DataFrame(columns=['url', 'risk_score', 'verdict', 'comment', 'timestamp'])
         
     except Exception as e:
-        print(f"❌ Error reading feedback: {e}")
+        print(f"❌ Error reading: {e}")
         return pd.DataFrame(columns=['url', 'risk_score', 'verdict', 'comment', 'timestamp'])
 
 def get_feedback_count_sheet():
@@ -113,13 +93,3 @@ def get_feedback_count_sheet():
         return len(df)
     except:
         return 0
-
-if __name__ == "__main__":
-    print("Testing Google Sheets save...")
-    result = save_feedback_sheet(
-        url="https://test.com",
-        risk=50,
-        verdict="safe",
-        comment="Test entry"
-    )
-    print(f"Result: {result}")
