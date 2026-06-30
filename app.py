@@ -4,7 +4,7 @@ Developed by Naim Shaikh
 """
 
 from url_analyzer import predict_url_risk
-from feedback_storage import save_feedback_sheet, get_feedback_sheet, get_feedback_count_sheet
+from feedback_storage import save_feedback_sheet, get_feedback_sheet, get_feedback_count_sheet, test_connection
 import streamlit as st
 import time
 import re
@@ -197,6 +197,20 @@ def get_feedback_data():
 
 with st.sidebar:
     st.title("ShopShield AI")
+    
+    # ===== DEBUG: Test Airtable Connection =====
+    st.divider()
+    st.subheader("🔍 Debug: Airtable Connection")
+    try:
+        status = test_connection()
+        if "✅" in status:
+            st.success(status)
+        else:
+            st.error(status)
+    except Exception as e:
+        st.error(f"Connection test failed: {e}")
+    st.divider()
+    # ===== END DEBUG =====
     
     if st.button("URL Analyzer", use_container_width=True):
         st.session_state.page = 'main'
