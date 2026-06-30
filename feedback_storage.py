@@ -15,28 +15,33 @@ SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 
 def get_credentials():
     """
-    Get credentials from Streamlit Secrets (deployed) or local file (development).
+    Get credentials from either:
+    1. Local file (credentials.json) for development
+    2. Streamlit Secrets for deployed app
     """
     try:
-        # Check if running on Streamlit Cloud
-        if os.getenv("STREAMLIT_CLOUD") or os.getenv("STREAMLIT_SHARING"):
-            # Use Streamlit Secrets (deployed)
-            try:
-                # Access the google_credentials section from secrets
+        # First try: Local file (for development)
+        if os.path.exists("credentials.json"):
+            print("✅ Using local credentials.json")
+            return ServiceAccountCredentials.from_json_keyfile_name("credentials.json", SCOPE)
+        
+        # Second try: Streamlit Secrets (for deployed app)
+        try:
+            if "google_credentials" in st.secrets:
+                print("✅ Using Streamlit Secrets")
                 creds_dict = dict(st.secrets["google_credentials"])
                 return ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
-            except Exception as e:
-                print(f"Error loading from secrets: {e}")
-                return None
-        else:
-            # Use local file (development)
-            if os.path.exists("credentials.json"):
-                return ServiceAccountCredentials.from_json_keyfile_name("credentials.json", SCOPE)
             else:
-                print("credentials.json not found! Please create it or use Streamlit secrets.")
-                return None
+                print("⚠️ google_credentials not found in secrets")
+        except Exception as e:
+            print(f"⚠️ Error reading secrets: {e}")
+        
+        # If neither works
+        print("❌ No credentials found!")
+        return None
+        
     except Exception as e:
-        print(f"Error loading credentials: {e}")
+        print(f"❌ Error loading credentials: {e}")
         return None
 
 def get_sheet():
