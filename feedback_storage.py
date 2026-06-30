@@ -1,124 +1,125 @@
 """
-Feedback Storage Module - ShopShield AI
+Feedback Storage Module - ShopShield AI (Airtable)
 Developed by Naim Shaikh
 """
 
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+import requests
 import pandas as pd
 from datetime import datetime
 import streamlit as st
 import os
-import json
-import traceback
 
-SHEET_NAME = "ShopShield Feedback"
-SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-
-def get_credentials():
-    """Get credentials from Streamlit Secrets or local file."""
+# Airtable configuration - get from secrets
+def get_airtable_config():
+    """Get Airtable configuration from secrets or environment."""
     try:
-        # Check if running on Streamlit Cloud
         if os.getenv("STREAMLIT_CLOUD") or os.getenv("STREAMLIT_SHARING"):
-            st.write("🔍 Running on Streamlit Cloud")
-            
-            # Debug: Show what's in secrets (remove after testing)
-            st.write(f"📋 Secrets keys: {list(st.secrets.keys())}")
-            
-            if "google_credentials_raw" in st.secrets:
-                st.write("✅ Found google_credentials_raw")
-                try:
-                    creds_dict = json.loads(st.secrets["google_credentials_raw"])
-                    st.write(f"✅ Loaded JSON with keys: {list(creds_dict.keys())}")
-                    return ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
-                except json.JSONDecodeError as e:
-                    st.error(f"❌ JSON decode error: {e}")
-                    return None
-            elif "google_credentials" in st.secrets:
-                st.write("✅ Found google_credentials")
-                creds_dict = dict(st.secrets["google_credentials"])
-                st.write(f"✅ Loaded with keys: {list(creds_dict.keys())}")
-                return ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
-            else:
-                st.error("❌ No Google credentials found in secrets!")
-                st.write(f"Available: {list(st.secrets.keys())}")
-                return None
+            # Deployed app - use Streamlit secrets
+            api_key = st.secrets.get("AIRTABLE_API_KEY")
+            base_id = st.secrets.get("AIRTABLE_BASE_ID")
         else:
-            # Local development
-            if os.path.exists("credentials.json"):
-                st.write("✅ Using local credentials.json")
-                return ServiceAccountCredentials.from_json_keyfile_name("credentials.json", SCOPE)
-            else:
-                st.error("❌ credentials.json not found!")
-                return None
-                
-    except Exception as e:
-        st.error(f"❌ Error loading credentials: {e}")
-        st.code(traceback.format_exc())
-        return None
-
-def get_sheet():
-    """Get the Google Sheet."""
-    try:
-        creds = get_credentials()
-        if creds is None:
-            st.error("❌ Credentials is None")
-            return None
+            # Local development - use environment variables or hardcoded
+            api_key = os.getenv("AIRTABLE_API_KEY", "YOUR_API_KEY_HERE")
+            base_id = os.getenv("AIRTABLE_BASE_ID", "YOUR_BASE_ID_HERE")
         
-        st.write("🔍 Authorizing client...")
-        client = gspread.authorize(creds)
-        st.write("✅ Client authorized")
-        
-        st.write(f"🔍 Opening sheet: {SHEET_NAME}")
-        sheet = client.open(SHEET_NAME).sheet1
-        st.write(f"✅ Connected to sheet: {SHEET_NAME}")
-        return sheet
-    except gspread.SpreadsheetNotFound as e:
-        st.error(f"❌ Spreadsheet '{SHEET_NAME}' not found!")
-        st.write("   Make sure you created it and shared with the service account")
-        st.code(traceback.format_exc())
-        return None
+        return api_key, base_id
     except Exception as e:
-        st.error(f"❌ Error connecting to sheet: {e}")
-        st.code(traceback.format_exc())
-        return None
+        print(f"Error getting config: {e}")
+        return None, None
 
 def save_feedback_sheet(url, risk, verdict, comment=""):
-    """Save feedback to Google Sheets."""
+    """Save feedback to Airtable."""
     try:
-        st.write(f"🔍 Saving: {url} -> {verdict}")
-        sheet = get_sheet()
-        if sheet is None:
-            st.error("❌ Sheet is None - cannot save")
+        api_key, base_id = get_airtable_config()
+        if not api_key or not base_id:
+            print("❌ Airtable credentials not found")
             return False
         
-        row = [url, risk, verdict, comment, datetime.now().isoformat()]
-        st.write(f"📝 Row: {row}")
-        sheet.append_row(row)
-        st.success(f"✅ Saved: {url} -> {verdict}")
-        return True
+        url_api = f"https://api.airtable.com/v0/{base_id}/Feedback"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "records": [{
+                "fields": {
+                    "URL": url,
+                    "Risk": risk,
+                    "Verdict": verdict,
+                    "Comment": comment,
+                    "Timestamp": datetime.now().isoformat()
+                }
+            }]
+        }
+        
+        print(f"📤 Sending to Airtable: {url} -> {verdict}")
+        response = requests.post(url_api, headers=headers, json=data)
+        
+        if response.status_code == 200:
+            print(f"✅ Saved: {url} -> {verdict}")
+            return True
+        else:
+            print(f"❌ Airtable Error: {response.status_code} - {response.text}")
+            return False
+            
     except Exception as e:
-        st.error(f"❌ Error saving: {e}")
-        st.code(traceback.format_exc())
+        print(f"❌ Error saving: {e}")
         return False
 
 def get_feedback_sheet():
+    """Get all feedback from Airtable."""
     try:
-        sheet = get_sheet()
-        if sheet is None:
+        api_key, base_id = get_airtable_config()
+        if not api_key or not base_id:
             return pd.DataFrame(columns=['url', 'risk_score', 'verdict', 'comment', 'timestamp'])
-        data = sheet.get_all_records()
-        if data:
-            return pd.DataFrame(data)
+        
+        url_api = f"https://api.airtable.com/v0/{base_id}/Feedback"
+        headers = {"Authorization": f"Bearer {api_key}"}
+        
+        response = requests.get(url_api, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            records = data.get("records", [])
+            if records:
+                rows = []
+                for record in records:
+                    fields = record.get("fields", {})
+                    rows.append({
+                        "url": fields.get("URL", ""),
+                        "risk_score": fields.get("Risk", 0),
+                        "verdict": fields.get("Verdict", ""),
+                        "comment": fields.get("Comment", ""),
+                        "timestamp": fields.get("Timestamp", "")
+                    })
+                return pd.DataFrame(rows)
         return pd.DataFrame(columns=['url', 'risk_score', 'verdict', 'comment', 'timestamp'])
+        
     except Exception as e:
-        st.error(f"❌ Error reading: {e}")
+        print(f"❌ Error reading: {e}")
         return pd.DataFrame(columns=['url', 'risk_score', 'verdict', 'comment', 'timestamp'])
 
 def get_feedback_count_sheet():
+    """Get number of feedback entries."""
     try:
         df = get_feedback_sheet()
         return len(df)
-    except Exception as e:
-        st.error(f"❌ Error getting count: {e}")
+    except:
         return 0
+
+def test_connection():
+    """Test Airtable connection."""
+    try:
+        api_key, base_id = get_airtable_config()
+        if not api_key or not base_id:
+            return "❌ Credentials not found"
+        
+        url_api = f"https://api.airtable.com/v0/{base_id}/Feedback"
+        headers = {"Authorization": f"Bearer {api_key}"}
+        response = requests.get(url_api, headers=headers)
+        
+        if response.status_code == 200:
+            return "✅ Connected to Airtable!"
+        else:
+            return f"❌ Error: {response.status_code}"
+    except Exception as e:
+        return f"❌ Error: {e}"

@@ -122,6 +122,7 @@ def save_feedback_local(feedback_entry):
 
 
 def save_feedback(url, risk, verdict, comment=""):
+    """Save user feedback."""
     try:
         result = save_feedback_sheet(url, risk, verdict, comment)
         if result:
@@ -133,6 +134,8 @@ def save_feedback(url, risk, verdict, comment=""):
         return result
     except Exception as e:
         print(f"Error: {e}")
+        st.session_state.feedback_success = False
+        st.session_state.feedback_message = f"Error: {str(e)}"
         return False
 
 
