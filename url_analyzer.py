@@ -22,7 +22,7 @@ SAFE_DOMAINS = [
     'walmart.com', 'target.com', 'bestbuy.com', 'costco.com',
     'youtube.com', 'reddit.com', 'twitter.com', 'linkedin.com',
     'facebook.com', 'instagram.com', 'python.org', 'wikipedia.org',
-    'dropbox.com', 'salesforce.com', 'adobe.com', 'oracle.com', 'nykaa.com'
+    'dropbox.com', 'salesforce.com', 'adobe.com', 'oracle.com'
 ]
 
 SUSPICIOUS_TLDS = [
@@ -334,6 +334,7 @@ if __name__ == "__main__":
     print("=" * 70)
     
     test_urls = [
+        "https://www.nykaa.com/skin/c/8377",
         "https://www.nike.com/in/t/air-max-shoes-PmlK0x",
         "https://www.myntra.com/men-casual-shirts",
         "https://www.boat-lifestyle.com/collections/wireless-earphones",
@@ -354,11 +355,11 @@ if __name__ == "__main__":
         risk = predict_url_risk(url)
         
         if risk >= 70:
-            status = "🔴 PHISHING"
+            status = "PHISHING"
         elif risk >= 30:
-            status = "🟡 SUSPICIOUS"
+            status = "SUSPICIOUS"
         else:
-            status = "🟢 SAFE"
+            status = "SAFE"
         
         print(f"{status}: {url[:50]}... ({risk:.1f}%)")
         print()
