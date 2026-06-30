@@ -122,34 +122,22 @@ def save_feedback_local(feedback_entry):
 
 
 def save_feedback(url, risk, verdict, comment=""):
+    """Save user feedback."""
     try:
         # Try Google Sheets first
         result = save_feedback_sheet(url, risk, verdict, comment)
         if result:
+            st.session_state.feedback_success = True
+            st.session_state.feedback_message = "Thank you for your feedback!"
             return True
         else:
-            # Fallback to local if Google Sheets fails
-            feedback_entry = {
-                "url": url,
-                "risk_score": risk,
-                "verdict": verdict,
-                "comment": comment,
-                "timestamp": datetime.now().isoformat()
-            }
-            return save_feedback_local(feedback_entry)
-    except Exception as e:
-        print(f"Error saving feedback: {e}")
-        try:
-            feedback_entry = {
-                "url": url,
-                "risk_score": risk,
-                "verdict": verdict,
-                "comment": comment,
-                "timestamp": datetime.now().isoformat()
-            }
-            return save_feedback_local(feedback_entry)
-        except:
+            # Fallback to local
+            st.session_state.feedback_success = False
+            st.session_state.feedback_message = "Error saving feedback. Please try again."
             return False
+    except Exception as e:
+        print(f"Error: {e}")
+        return False
 
 
 def analyze_url(url):
