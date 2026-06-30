@@ -13,23 +13,43 @@ import os
 SHEET_NAME = "ShopShield Feedback"
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
+def get_credentials():
+    """
+    Get credentials from Streamlit Secrets (deployed) or local file (development).
+    """
+    try:
+        # Check if running on Streamlit Cloud
+        if os.getenv("STREAMLIT_CLOUD") or os.getenv("STREAMLIT_SHARING"):
+            # Use Streamlit Secrets (deployed)
+            try:
+                # Access the google_credentials section from secrets
+                creds_dict = dict(st.secrets["google_credentials"])
+                return ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
+            except Exception as e:
+                print(f"Error loading from secrets: {e}")
+                return None
+        else:
+            # Use local file (development)
+            if os.path.exists("credentials.json"):
+                return ServiceAccountCredentials.from_json_keyfile_name("credentials.json", SCOPE)
+            else:
+                print("credentials.json not found! Please create it or use Streamlit secrets.")
+                return None
+    except Exception as e:
+        print(f"Error loading credentials: {e}")
+        return None
+
 def get_sheet():
     """Get the Google Sheet with error handling."""
     try:
-        if os.getenv("STREAMLIT_CLOUD"):
-            # Read from Streamlit secrets
-            creds_dict = dict(st.secrets["google_credentials"])
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
-        else:
-            # Local development - read from file
-            if not os.path.exists("credentials.json"):
-                print("❌ credentials.json not found!")
-                return None
-            creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", SCOPE)
+        creds = get_credentials()
+        if creds is None:
+            print("❌ Could not load credentials")
+            return None
         
         client = gspread.authorize(creds)
+        print("✅ Authorized successfully")
         
-        # Try to open the sheet
         try:
             sheet = client.open(SHEET_NAME).sheet1
             print(f"✅ Opened sheet: {SHEET_NAME}")
