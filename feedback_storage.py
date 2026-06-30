@@ -16,23 +16,25 @@ SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 
 def get_credentials():
     try:
-        is_cloud = os.getenv("STREAMLIT_CLOUD") or os.getenv("STREAMLIT_SHARING")
+        # FOR DEPLOYED APP: Use Streamlit secrets
+        if os.getenv("STREAMLIT_CLOUD") or os.getenv("STREAMLIT_SHARING"):
+            try:
+                if "google_credentials" in st.secrets:
+                    print("✅ Using google_credentials from secrets")
+                    creds_dict = dict(st.secrets["google_credentials"])
+                    return ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
+                elif "google_credentials_raw" in st.secrets:
+                    print("✅ Using google_credentials_raw from secrets")
+                    creds_dict = json.loads(st.secrets["google_credentials_raw"])
+                    return ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
+            except Exception as e:
+                print(f"Error reading secrets: {e}")
+                return None
         
-        if not is_cloud and os.path.exists("credentials.json"):
+        # FOR LOCAL DEVELOPMENT: Use credentials.json file
+        if os.path.exists("credentials.json"):
             print("✅ Using local credentials.json")
             return ServiceAccountCredentials.from_json_keyfile_name("credentials.json", SCOPE)
-        
-        try:
-            if "google_credentials_raw" in st.secrets:
-                print("✅ Using google_credentials_raw from secrets")
-                creds_dict = json.loads(st.secrets["google_credentials_raw"])
-                return ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
-            elif "google_credentials" in st.secrets:
-                print("✅ Using google_credentials from secrets")
-                creds_dict = dict(st.secrets["google_credentials"])
-                return ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
-        except Exception as e:
-            print(f"Error reading secrets: {e}")
         
         print("❌ No credentials found!")
         return None
@@ -56,9 +58,11 @@ def save_feedback_sheet(url, risk, verdict, comment=""):
     try:
         sheet = get_sheet()
         if sheet is None:
+            print("❌ Sheet not available")
             return False
         row = [url, risk, verdict, comment, datetime.now().isoformat()]
         sheet.append_row(row)
+        print(f"✅ Saved: {url}")
         return True
     except Exception as e:
         print(f"Error saving: {e}")
