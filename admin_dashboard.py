@@ -111,7 +111,7 @@ with st.sidebar:
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("Retraining failed")
+                    st.error("Retraining failed. Check Streamlit logs for details.")
             except Exception as e:
                 st.error(f"Error: {str(e)}")
     st.divider()
