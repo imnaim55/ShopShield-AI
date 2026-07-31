@@ -8,7 +8,7 @@ import pandas as pd
 import os
 from datetime import datetime
 import time
-from auto_train import auto_retrain, read_status
+from auto_train import auto_retrain
 
 st.set_page_config(
     page_title="Admin Dashboard - ShopShield AI",
@@ -22,6 +22,8 @@ if 'auto_refresh' not in st.session_state:
     st.session_state.auto_refresh = True
 if 'refresh_interval' not in st.session_state:
     st.session_state.refresh_interval = 30
+if 'retrain_success_time' not in st.session_state:
+    st.session_state.retrain_success_time = None
 
 
 def get_feedback_summary():
@@ -96,13 +98,16 @@ with st.sidebar:
         with st.spinner("Retraining model..."):
             try:
                 if auto_retrain(min_samples=1, force=True):
-                    st.success("Model retrained successfully!")
+                    st.session_state.retrain_success_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    st.success(f"✅ Model retrained successfully at {st.session_state.retrain_success_time}")
                     st.session_state.last_refresh = datetime.now()
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("Retraining failed. Check status below for details.")
+                    st.session_state.retrain_success_time = None
+                    st.error("❌ Retraining failed. Check status below for details.")
             except Exception as e:
+                st.session_state.retrain_success_time = None
                 st.error(f"Error: {str(e)}")
     # -----------------------------------------
     
@@ -256,15 +261,13 @@ else:
     st.warning("Model is not loaded. Check your Hugging Face connection or local model file.")
 
 
-# ---------- RETRAINING STATUS DISPLAY ----------
+# ---------- RETRAINING STATUS ----------
 st.divider()
 st.subheader("Retraining Status")
-try:
-    status_text = read_status()
-    st.text(status_text)
-except Exception as e:
-    st.text(f"Unable to read status: {str(e)}")
-# -----------------------------------------------
+if st.session_state.retrain_success_time:
+    st.success(f"Last successful retraining: {st.session_state.retrain_success_time}")
+else:
+    st.info("No successful retraining has been performed yet in this session.")
 
 
 if st.session_state.auto_refresh:
