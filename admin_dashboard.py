@@ -8,7 +8,7 @@ import pandas as pd
 import os
 from datetime import datetime
 import time
-from auto_train import auto_retrain
+from auto_train import auto_retrain, read_status
 
 st.set_page_config(
     page_title="Admin Dashboard - ShopShield AI",
@@ -55,7 +55,6 @@ def get_archive_summary():
 
 
 def get_model_info():
-    # Use the model from url_analyzer
     from url_analyzer import model, get_model_info as get_analyzer_model_info
     if model is None:
         return {"status": "Not loaded"}
@@ -90,9 +89,10 @@ with st.sidebar:
         st.session_state.last_refresh = datetime.now()
         st.rerun()
     st.divider()
-    # ---------- FORCE RETRAIN BUTTON WITH DEBUG ----------
+    
+    # ---------- FORCE RETRAIN BUTTON ----------
     if st.button("Force Retrain", use_container_width=True):
-        st.write("🔍 Button clicked – starting retrain...")
+        st.write("🔍 Starting retrain...")
         with st.spinner("Retraining model..."):
             try:
                 if auto_retrain(min_samples=1, force=True):
@@ -101,10 +101,11 @@ with st.sidebar:
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("Retraining failed. Check logs for details.")
+                    st.error("Retraining failed. Check status below for details.")
             except Exception as e:
                 st.error(f"Error: {str(e)}")
-    # ----------------------------------------------------
+    # -----------------------------------------
+    
     st.divider()
     archive_stats = get_archive_summary()
     st.caption(f"Archived Feedback: {archive_stats['total_entries']} entries")
@@ -112,6 +113,7 @@ with st.sidebar:
     if check_new_feedback():
         st.success("New feedback detected!")
     st.caption(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
 
 if st.session_state.auto_refresh:
     time_since_refresh = (datetime.now() - st.session_state.last_refresh).total_seconds()
@@ -121,6 +123,7 @@ if st.session_state.auto_refresh:
     remaining = int(st.session_state.refresh_interval - time_since_refresh)
     if remaining > 0:
         st.caption(f"Auto-refresh in {remaining} seconds")
+
 
 st.title("Admin Dashboard")
 summary = get_feedback_summary()
@@ -179,6 +182,7 @@ if os.path.exists(feedback_file) and os.path.getsize(feedback_file) > 0:
 else:
     st.info("No feedback file found")
 
+
 st.divider()
 st.subheader("Archived Feedback")
 archive_file = "data/feedback_archive.csv"
@@ -204,6 +208,7 @@ if os.path.exists(archive_file) and os.path.getsize(archive_file) > 0:
         st.info("No archived feedback available")
 else:
     st.info("No archived feedback")
+
 
 st.divider()
 st.subheader("Analytics")
@@ -231,10 +236,9 @@ if os.path.exists(feedback_file) and os.path.getsize(feedback_file) > 0:
     except:
         pass
 
+
 st.divider()
 st.subheader("Model Information")
-
-# Use model info from url_analyzer
 if model_info.get('status') == 'Loaded':
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -251,6 +255,18 @@ if model_info.get('status') == 'Loaded':
 else:
     st.warning("Model is not loaded. Check your Hugging Face connection or local model file.")
 
+
+# ---------- RETRAINING STATUS DISPLAY ----------
+st.divider()
+st.subheader("Retraining Status")
+try:
+    status_text = read_status()
+    st.text(status_text)
+except Exception as e:
+    st.text(f"Unable to read status: {str(e)}")
+# -----------------------------------------------
+
+
 if st.session_state.auto_refresh:
     st.caption(f"Auto-refresh enabled - Updates every {st.session_state.refresh_interval} seconds")
 else:
@@ -265,6 +281,7 @@ if st.session_state.auto_refresh:
         }}, {st.session_state.refresh_interval * 1000});
     </script>
     """, unsafe_allow_html=True)
+
 
 with st.expander("About Auto-Refresh & Auto-Retraining"):
     st.write("""
