@@ -3,7 +3,7 @@ Auto-Retraining Module - ShopShield AI
 Developed by Naim Shaikh
 """
 
-print("🔧 auto_train.py loaded")
+print("auto_train.py loaded")
 
 import pandas as pd
 import pickle
@@ -32,55 +32,55 @@ FEATURE_COLUMNS = [
 ]
 
 def write_status(msg):
-    with open(STATUS_FILE, "w") as f:
+    with open(STATUS_FILE, "w", encoding="utf-8") as f:
         f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {msg}\n")
 
 def read_status():
     if os.path.exists(STATUS_FILE):
-        with open(STATUS_FILE, "r") as f:
+        with open(STATUS_FILE, "r", encoding="utf-8") as f:
             return f.read()
     return "No retrain attempt yet."
 
 
 def load_or_download_dataset():
     if os.path.exists(ORIGINAL_DATASET):
-        write_status(f"✅ Found local dataset: {ORIGINAL_DATASET}")
+        write_status(f"Found local dataset: {ORIGINAL_DATASET}")
         return pd.read_csv(ORIGINAL_DATASET)
     try:
-        write_status("📥 Downloading dataset from Hugging Face Hub...")
+        write_status("Downloading dataset from Hugging Face Hub...")
         dataset_path = hf_hub_download(
             repo_id=HF_DATASET_REPO,
             filename=HF_DATASET_FILE,
             repo_type="dataset"
         )
-        write_status(f"✅ Downloaded to {dataset_path}")
+        write_status(f"Downloaded to {dataset_path}")
         return pd.read_csv(dataset_path)
     except Exception as e:
-        write_status(f"❌ Could not download dataset: {e}")
+        write_status(f"Could not download dataset: {e}")
         return None
 
 
 def auto_retrain(min_samples=5, force=False):
-    write_status("🔄 Starting retraining...")
+    write_status("Starting retraining...")
     
     if not os.path.exists(FEEDBACK_FILE):
-        write_status("❌ No feedback file.")
+        write_status("No feedback file.")
         return False
     feedback_df = pd.read_csv(FEEDBACK_FILE)
     if feedback_df.empty:
-        write_status("❌ Feedback file is empty.")
+        write_status("Feedback file is empty.")
         return False
-    write_status(f"📊 Feedback entries: {len(feedback_df)}")
+    write_status(f"Feedback entries: {len(feedback_df)}")
 
     verdict_col = 'verdict' if 'verdict' in feedback_df.columns else 'user_verdict'
     if verdict_col not in feedback_df.columns:
-        write_status(f"❌ No verdict column found. Available: {feedback_df.columns.tolist()}")
+        write_status(f"No verdict column found. Available: {feedback_df.columns.tolist()}")
         return False
 
     feedback_df = feedback_df[feedback_df[verdict_col].isin(['phishing', 'safe'])]
-    write_status(f"📊 Clear feedback entries: {len(feedback_df)}")
+    write_status(f"Clear feedback entries: {len(feedback_df)}")
     if len(feedback_df) < min_samples and not force:
-        write_status(f"⏳ Need {min_samples} feedback samples, have {len(feedback_df)}.")
+        write_status(f"Need {min_samples} feedback samples, have {len(feedback_df)}.")
         return False
 
     all_features = []
@@ -93,11 +93,11 @@ def auto_retrain(min_samples=5, force=False):
             y_orig = original_df['label'].astype(int)
             all_features.extend(X_orig.values.tolist())
             all_labels.extend(y_orig.values.tolist())
-            write_status(f"📚 Loaded {len(X_orig)} original training samples.")
+            write_status(f"Loaded {len(X_orig)} original training samples.")
         else:
-            write_status("⚠️ Original dataset missing required columns.")
+            write_status("Original dataset missing required columns.")
     else:
-        write_status("⚠️ Original dataset not available. Training only with feedback data.")
+        write_status("Original dataset not available. Training only with feedback data.")
 
     processed = 0
     for _, row in feedback_df.iterrows():
@@ -109,17 +109,17 @@ def auto_retrain(min_samples=5, force=False):
             all_labels.append(label)
             processed += 1
         except Exception as e:
-            write_status(f"⚠️ Could not process URL: {row['url']} - {e}")
+            write_status(f"Could not process URL: {row['url']} - {e}")
             continue
-    write_status(f"📝 Processed {processed} feedback entries.")
+    write_status(f"Processed {processed} feedback entries.")
 
     if len(all_features) < 10:
-        write_status(f"❌ Not enough total training samples: {len(all_features)} (need ≥10).")
+        write_status(f"Not enough total training samples: {len(all_features)} (need >=10).")
         return False
 
     X = np.array(all_features)
     y = np.array(all_labels)
-    write_status(f"📊 Total training samples: {len(X)} (Phishing: {sum(y)}, Safe: {len(y)-sum(y)})")
+    write_status(f"Total training samples: {len(X)} (Phishing: {sum(y)}, Safe: {len(y)-sum(y)})")
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
@@ -137,15 +137,15 @@ def auto_retrain(min_samples=5, force=False):
     model.fit(X_train, y_train)
 
     y_pred = model.predict(X_test)
-    write_status(f"📈 Accuracy: {accuracy_score(y_test, y_pred):.4f}")
-    write_status(f"📈 Precision: {precision_score(y_test, y_pred):.4f}")
-    write_status(f"📈 Recall: {recall_score(y_test, y_pred):.4f}")
-    write_status(f"📈 F1 Score: {f1_score(y_test, y_pred):.4f}")
+    write_status(f"Accuracy: {accuracy_score(y_test, y_pred):.4f}")
+    write_status(f"Precision: {precision_score(y_test, y_pred):.4f}")
+    write_status(f"Recall: {recall_score(y_test, y_pred):.4f}")
+    write_status(f"F1 Score: {f1_score(y_test, y_pred):.4f}")
 
     os.makedirs("models", exist_ok=True)
     with open(MODEL_PATH, 'wb') as f:
         pickle.dump(model, f)
-    write_status(f"✅ Model saved to {MODEL_PATH}")
+    write_status(f"Model saved to {MODEL_PATH}")
 
     archive_file = "data/feedback_archive.csv"
     if os.path.exists(archive_file) and os.path.getsize(archive_file) > 0:
@@ -156,8 +156,8 @@ def auto_retrain(min_samples=5, force=False):
             pass
     feedback_df.to_csv(archive_file, index=False)
     pd.DataFrame(columns=feedback_df.columns).to_csv(FEEDBACK_FILE, index=False)
-    write_status("✅ Feedback archived.")
-    write_status("✅ Auto-retraining completed successfully.")
+    write_status("Feedback archived.")
+    write_status("Auto-retraining completed successfully.")
     return True
 
 
