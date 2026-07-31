@@ -10,11 +10,8 @@ import re
 import math
 import os
 from collections import Counter
-from huggingface_hub import hf_hub_download
 
 MODEL_PATH = os.path.join("models", "url_phishing_model.pkl")
-HF_REPO_ID = "imnaim55/shopshield-model"
-HF_FILENAME = "url_phishing_model.pkl"
 
 SAFE_DOMAINS = [
     'stackoverflow.com', 'github.com', 'amazon.com', 'google.com',
@@ -65,8 +62,7 @@ IP_PATTERN = r"(\d{1,3}\.){3}\d{1,3}"
 
 
 def load_model():
-    """Attempt to load model from local path; if missing, download from Hugging Face Hub."""
-    # Try local file
+    """Load model from local path; if missing, return None."""
     if os.path.exists(MODEL_PATH):
         try:
             with open(MODEL_PATH, "rb") as f:
@@ -75,22 +71,9 @@ def load_model():
             return model
         except Exception as e:
             print(f"Error loading local model: {e}")
-
-    # Try downloading from Hugging Face Hub
-    try:
-        print("Downloading model from Hugging Face Hub...")
-        model_path = hf_hub_download(
-            repo_id=HF_REPO_ID,
-            filename=HF_FILENAME,
-            repo_type="model"
-        )
-        with open(model_path, "rb") as f:
-            model = pickle.load(f)
-        print(f"Model downloaded and loaded from {model_path}")
-        return model
-    except Exception as e:
-        print(f"Error downloading/loading model from Hugging Face: {e}")
-        return None
+    else:
+        print("Model file not found. Will use heuristic analysis only.")
+    return None
 
 
 model = load_model()
