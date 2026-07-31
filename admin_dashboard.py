@@ -10,9 +10,10 @@ from datetime import datetime
 import time
 from auto_train import auto_retrain
 
+# Use a simple icon (no emoji)
 st.set_page_config(
     page_title="Admin Dashboard - ShopShield AI",
-    page_icon="📊",
+    page_icon="📊",  # Keep this simple icon
     layout="wide"
 )
 
@@ -57,11 +58,10 @@ def get_archive_summary():
 
 
 def get_model_info():
-    # Try to import model from url_analyzer
     try:
         from url_analyzer import model, get_model_info as get_analyzer_model_info
         if model is None:
-            return {"status": "Not loaded", "message": "Model is None"}
+            return {"status": "Not loaded", "message": "Model file not found or failed to load"}
         info = get_analyzer_model_info()
         return info
     except Exception as e:
@@ -96,9 +96,8 @@ with st.sidebar:
         st.rerun()
     st.divider()
     
-    # ---------- FORCE RETRAIN BUTTON ----------
+    # Force Retrain Button (no emojis in messages)
     if st.button("Force Retrain", use_container_width=True):
-        st.write("Starting retrain...")
         with st.spinner("Retraining model..."):
             try:
                 if auto_retrain(min_samples=1, force=True):
@@ -113,7 +112,6 @@ with st.sidebar:
             except Exception as e:
                 st.session_state.retrain_success_time = None
                 st.error(f"Error: {str(e)}")
-    # -----------------------------------------
     
     st.divider()
     archive_stats = get_archive_summary()
@@ -267,7 +265,7 @@ else:
         st.code(model_info['message'])
 
 
-# ---------- RETRAINING STATUS ----------
+# Retraining Status
 st.divider()
 st.subheader("Retraining Status")
 if st.session_state.retrain_success_time:
