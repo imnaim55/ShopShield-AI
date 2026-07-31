@@ -57,11 +57,15 @@ def get_archive_summary():
 
 
 def get_model_info():
-    from url_analyzer import model, get_model_info as get_analyzer_model_info
-    if model is None:
-        return {"status": "Not loaded"}
-    info = get_analyzer_model_info()
-    return info
+    # Try to import model from url_analyzer
+    try:
+        from url_analyzer import model, get_model_info as get_analyzer_model_info
+        if model is None:
+            return {"status": "Not loaded", "message": "Model is None"}
+        info = get_analyzer_model_info()
+        return info
+    except Exception as e:
+        return {"status": "Error", "message": str(e)}
 
 
 def check_new_feedback():
@@ -94,18 +98,18 @@ with st.sidebar:
     
     # ---------- FORCE RETRAIN BUTTON ----------
     if st.button("Force Retrain", use_container_width=True):
-        st.write("🔍 Starting retrain...")
+        st.write("Starting retrain...")
         with st.spinner("Retraining model..."):
             try:
                 if auto_retrain(min_samples=1, force=True):
                     st.session_state.retrain_success_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    st.success(f"✅ Model retrained successfully at {st.session_state.retrain_success_time}")
+                    st.success(f"Model retrained successfully at {st.session_state.retrain_success_time}")
                     st.session_state.last_refresh = datetime.now()
                     time.sleep(1)
                     st.rerun()
                 else:
                     st.session_state.retrain_success_time = None
-                    st.error("❌ Retraining failed. Check status below for details.")
+                    st.error("Retraining failed. Check status below for details.")
             except Exception as e:
                 st.session_state.retrain_success_time = None
                 st.error(f"Error: {str(e)}")
@@ -247,7 +251,7 @@ st.subheader("Model Information")
 if model_info.get('status') == 'Loaded':
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Status", "✅ Active")
+        st.metric("Status", "Active")
         st.metric("Model Type", model_info.get('type', 'Random Forest'))
     with col2:
         st.metric("Number of Trees", model_info.get('trees', 'N/A'))
@@ -259,6 +263,8 @@ if model_info.get('status') == 'Loaded':
             st.metric("Age", f"{int(age)} minutes ago" if age < 60 else f"{int(age/60)} hours ago")
 else:
     st.warning("Model is not loaded. Check your Hugging Face connection or local model file.")
+    if 'message' in model_info:
+        st.code(model_info['message'])
 
 
 # ---------- RETRAINING STATUS ----------
