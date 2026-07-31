@@ -3,6 +3,8 @@ Auto-Retraining Module - ShopShield AI
 Developed by Naim Shaikh
 """
 
+print("🔧 auto_train.py loaded")   # debug
+
 import pandas as pd
 import pickle
 import os
@@ -48,6 +50,7 @@ def load_or_download_dataset():
 
 
 def auto_retrain(min_samples=5, force=False):
+    print("🔄 auto_retrain called")   # debug
     print("🔄 Starting retraining...")
 
     # 1. Check feedback file
@@ -161,3 +164,7 @@ def auto_retrain(min_samples=5, force=False):
     print("✅ Feedback archived.")
 
     return True
+
+
+if __name__ == "__main__":
+    auto_retrain(min_samples=1, force=True)

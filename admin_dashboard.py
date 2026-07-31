@@ -8,9 +8,7 @@ import pandas as pd
 import os
 from datetime import datetime
 import time
-
-# Import the already-loaded model from url_analyzer
-from url_analyzer import model, get_model_info as get_analyzer_model_info
+from auto_train import auto_retrain
 
 st.set_page_config(
     page_title="Admin Dashboard - ShopShield AI",
@@ -57,20 +55,11 @@ def get_archive_summary():
 
 
 def get_model_info():
-    """
-    Retrieve model information using the already-loaded model from url_analyzer.
-    """
+    # Use the model from url_analyzer
+    from url_analyzer import model, get_model_info as get_analyzer_model_info
     if model is None:
-        return {"status": "Not loaded", "message": "Model could not be loaded. Check Hugging Face connection or local file."}
-    # Use the utility from url_analyzer to get details
+        return {"status": "Not loaded"}
     info = get_analyzer_model_info()
-    # Add age calculation if last_updated exists
-    if "last_updated" in info:
-        try:
-            last_updated = datetime.fromisoformat(info["last_updated"])
-            info["age_minutes"] = (datetime.now() - last_updated).total_seconds() / 60
-        except:
-            pass
     return info
 
 
@@ -101,19 +90,21 @@ with st.sidebar:
         st.session_state.last_refresh = datetime.now()
         st.rerun()
     st.divider()
+    # ---------- FORCE RETRAIN BUTTON WITH DEBUG ----------
     if st.button("Force Retrain", use_container_width=True):
+        st.write("🔍 Button clicked – starting retrain...")
         with st.spinner("Retraining model..."):
             try:
-                from auto_train import auto_retrain
                 if auto_retrain(min_samples=1, force=True):
                     st.success("Model retrained successfully!")
                     st.session_state.last_refresh = datetime.now()
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("Retraining failed. Check Streamlit logs for details.")
+                    st.error("Retraining failed. Check logs for details.")
             except Exception as e:
                 st.error(f"Error: {str(e)}")
+    # ----------------------------------------------------
     st.divider()
     archive_stats = get_archive_summary()
     st.caption(f"Archived Feedback: {archive_stats['total_entries']} entries")
@@ -243,7 +234,7 @@ if os.path.exists(feedback_file) and os.path.getsize(feedback_file) > 0:
 st.divider()
 st.subheader("Model Information")
 
-# Display model info using the loaded model
+# Use model info from url_analyzer
 if model_info.get('status') == 'Loaded':
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -281,7 +272,7 @@ with st.expander("About Auto-Refresh & Auto-Retraining"):
     - Dashboard updates automatically at configured intervals
     - Shows when new feedback is collected
     - Real-time metric updates
-    
+
     **Auto-Retraining Process:**
     1. Users submit feedback via the app
     2. Feedback saved to data/user_feedback.csv
@@ -289,7 +280,7 @@ with st.expander("About Auto-Refresh & Auto-Retraining"):
     4. Model retrains with new feedback
     5. Feedback moves to data/feedback_archive.csv
     6. Updated model saved to models/url_phishing_model.pkl
-    
+
     **Current Status:**
     - Auto-refresh: {'Enabled' if st.session_state.auto_refresh else 'Disabled'}
     - Auto-retraining: Active (triggers at 5 feedback entries)

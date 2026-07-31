@@ -13,6 +13,9 @@ from datetime import datetime
 import os
 import pickle
 
+# Version stamp to confirm deployment
+st.write("🔍 App version: 2026-08-01")
+
 st.set_page_config(
     page_title="ShopShield AI",
     page_icon="🛡️",
