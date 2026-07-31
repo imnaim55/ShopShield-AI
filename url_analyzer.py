@@ -10,8 +10,11 @@ import re
 import math
 import os
 from collections import Counter
+from huggingface_hub import hf_hub_download
 
 MODEL_PATH = os.path.join("models", "url_phishing_model.pkl")
+HF_REPO_ID = "imnaim55/shopshield-model"
+HF_FILENAME = "url_phishing_model.pkl"
 
 SAFE_DOMAINS = [
     'stackoverflow.com', 'github.com', 'amazon.com', 'google.com',
@@ -60,14 +63,37 @@ SCAM_PATTERNS = [
 UNUSUAL_PORTS = [":8080", ":8443", ":3000", ":5000", ":8000", ":8888", ":4443"]
 IP_PATTERN = r"(\d{1,3}\.){3}\d{1,3}"
 
-try:
-    with open(MODEL_PATH, "rb") as f:
-        model = pickle.load(f)
-        print(f"Model loaded from {MODEL_PATH}")
-        print(f"Expected features: {model.n_features_in_}")
-except Exception as e:
-    print(f"Error loading model: {e}")
-    model = None
+
+def load_model():
+    """Attempt to load model from local path; if missing, download from Hugging Face Hub."""
+    # Try local file
+    if os.path.exists(MODEL_PATH):
+        try:
+            with open(MODEL_PATH, "rb") as f:
+                model = pickle.load(f)
+            print(f"Model loaded locally from {MODEL_PATH}")
+            return model
+        except Exception as e:
+            print(f"Error loading local model: {e}")
+
+    # Try downloading from Hugging Face Hub
+    try:
+        print("Downloading model from Hugging Face Hub...")
+        model_path = hf_hub_download(
+            repo_id=HF_REPO_ID,
+            filename=HF_FILENAME,
+            repo_type="model"
+        )
+        with open(model_path, "rb") as f:
+            model = pickle.load(f)
+        print(f"Model downloaded and loaded from {model_path}")
+        return model
+    except Exception as e:
+        print(f"Error downloading/loading model from Hugging Face: {e}")
+        return None
+
+
+model = load_model()
 
 
 def calculate_entropy(text):
@@ -159,7 +185,6 @@ def is_legitimate_ecommerce(url_lower, domain):
         r'bestbuy\.com/',
         r'costco\.com/',
     ]
-    
     for pattern in legitimate_patterns:
         if re.search(pattern, url_lower):
             return True
@@ -237,88 +262,53 @@ def heuristic_analysis(url):
 
 
 def predict_url_risk(url):
-    """
-    Predict phishing risk using a combination of ML model and heuristic analysis.
-    """
     try:
         url_lower = url.lower()
         domain = urllib.parse.urlparse(url).netloc.lower()
         
-        # 1. WHITELIST CHECK - Immediate safe return
         for safe_domain in SAFE_DOMAINS:
             if domain == safe_domain or domain.endswith('.' + safe_domain):
-                print(f"Whitelisted safe domain: {domain}")
                 return 5.0
         
-        # 2. LEGITIMATE E-COMMERCE CHECK
         if is_legitimate_ecommerce(url_lower, domain):
-            print(f"Legitimate e-commerce site: {domain}")
             return 8.0
         
-        # 3. HEURISTIC ANALYSIS FIRST
         heuristic_risk = heuristic_analysis(url)
-        print(f"Heuristic risk: {heuristic_risk}%")
         
-        # If heuristic says safe, return safe
         if heuristic_risk < 30:
-            print(f"URL appears safe based on heuristic analysis")
             return heuristic_risk
         
-        # 4. ML MODEL PREDICTION (if available)
         if model is not None:
             try:
-                features, extra_features = extract_features_from_url(url)
-                
+                features, _ = extract_features_from_url(url)
                 if features.shape[1] == model.n_features_in_:
                     probabilities = model.predict_proba(features)[0]
-                    
                     if hasattr(model, 'classes_'):
                         classes = list(model.classes_)
-                        if 1 in classes:
-                            phishing_prob = probabilities[classes.index(1)]
-                        else:
-                            phishing_prob = probabilities[0]
+                        phishing_prob = probabilities[classes.index(1)] if 1 in classes else probabilities[0]
                     else:
                         phishing_prob = probabilities[1] if len(probabilities) > 1 else probabilities[0]
-                    
                     ml_risk = float(round(phishing_prob * 100, 2))
-                    print(f"ML risk: {ml_risk}%")
-                    
-                    # Combine heuristic and ML (weighted average)
-                    # Give more weight to heuristic for safety
                     if heuristic_risk >= 70 and ml_risk >= 70:
-                        final_risk = max(heuristic_risk, ml_risk)
+                        return max(heuristic_risk, ml_risk)
                     elif heuristic_risk >= 50 and ml_risk >= 50:
-                        final_risk = (heuristic_risk * 0.6) + (ml_risk * 0.4)
-                    else:
-                        final_risk = heuristic_risk
-                    
-                    final_risk = min(100.0, final_risk)
-                    print(f"Final risk: {final_risk}%")
-                    return final_risk
-                    
-            except Exception as e:
-                print(f"ML prediction error: {e}")
+                        return min(100.0, (heuristic_risk * 0.6) + (ml_risk * 0.4))
+            except Exception:
+                pass
         
-        # 5. If ML fails, return heuristic
-        print(f"Using heuristic risk: {heuristic_risk}%")
         return heuristic_risk
         
-    except Exception as e:
-        print(f"Prediction Error: {e}")
+    except Exception:
         return heuristic_analysis(url)
 
 
 def predict_batch_risk(urls):
-    """Predict risk for multiple URLs."""
     return {url: predict_url_risk(url) for url in urls}
 
 
 def get_model_info():
-    """Get information about the loaded model."""
     if model is None:
         return {"status": "Not loaded"}
-    
     return {
         "status": "Loaded",
         "type": type(model).__name__,
@@ -353,16 +343,8 @@ if __name__ == "__main__":
     
     for url in test_urls:
         risk = predict_url_risk(url)
-        
-        if risk >= 70:
-            status = "PHISHING"
-        elif risk >= 30:
-            status = "SUSPICIOUS"
-        else:
-            status = "SAFE"
-        
+        status = "PHISHING" if risk >= 70 else "SUSPICIOUS" if risk >= 30 else "SAFE"
         print(f"{status}: {url[:50]}... ({risk:.1f}%)")
-        print()
     
     print("=" * 70)
     print("\nModel Info:")
