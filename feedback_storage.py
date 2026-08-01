@@ -2,17 +2,19 @@
 Feedback Storage Module - ShopShield AI
 Developed by Naim Shaikh
 """
+
+import os
+import pandas as pd
+from datetime import datetime
+import requests
+
+FEEDBACK_FILE = "data/user_feedback.csv"
+ARCHIVE_FILE = "data/feedback_archive.csv"
+
 # Hugging Face Config
 HF_TOKEN = os.getenv("HF_TOKEN")
 HF_DATASET_REPO = "imnaim55/shopshield-feedback"
 HF_MODEL_REPO = "imnaim55/shopshield-model"
-
-import pandas as pd
-from datetime import datetime
-import os
-
-FEEDBACK_FILE = "data/user_feedback.csv"
-ARCHIVE_FILE = "data/feedback_archive.csv"
 
 
 def save_feedback(url, risk, verdict, comment=""):
