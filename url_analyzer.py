@@ -71,7 +71,6 @@ IP_PATTERN = r"(\d{1,3}\.){3}\d{1,3}"
 
 
 def load_model():
-    """Load model from Hugging Face Hub (virtual) with local fallback."""
     try:
         print("Loading model from Hugging Face Hub...")
         model_path = hf_hub_download(
@@ -87,7 +86,6 @@ def load_model():
         return model
     except Exception as e:
         print(f"Error loading model from Hugging Face: {e}")
-        
         if os.path.exists(MODEL_PATH):
             try:
                 with open(MODEL_PATH, "rb") as f:
@@ -96,7 +94,6 @@ def load_model():
                 return model
             except Exception as e2:
                 print(f"Error loading local model: {e2}")
-        
         print("No model available. Using heuristic analysis only.")
         return None
 
@@ -212,21 +209,16 @@ def heuristic_analysis(url):
 
 
 def predict_url_risk(url):
-    """
-    Predict phishing risk using: Feedback Score > Heuristic > ML.
-    """
     try:
         url_lower = url.lower()
         domain = urllib.parse.urlparse(url).netloc.lower()
 
-        # ===== STEP 1: Check whitelist =====
         for safe_domain in SAFE_DOMAINS:
             if domain == safe_domain or domain.endswith('.' + safe_domain):
                 print(f"Safe domain: {domain}")
                 return 5.0
 
-        # ===== STEP 2: Check feedback-based score (VIRTUAL) =====
-        # Import inside function to avoid circular import
+        # Feedback score (lazy import to avoid circular dependency)
         try:
             from feedback_storage import get_url_feedback_score, get_url_feedback_summary
             feedback_score = get_url_feedback_score(url, min_votes=3)
@@ -237,11 +229,10 @@ def predict_url_risk(url):
                     print(f"Votes: {summary['safe_votes']} safe, {summary['phishing_votes']} phishing")
                 return feedback_score
         except ImportError:
-            print("Feedback module not available")
+            pass
         except Exception as e:
             print(f"Feedback score error: {e}")
 
-        # ===== STEP 3: Heuristic analysis =====
         heuristic_risk = heuristic_analysis(url)
         print(f"Heuristic risk: {heuristic_risk}%")
 
@@ -249,7 +240,6 @@ def predict_url_risk(url):
             print(f"High risk from heuristic: {heuristic_risk}%")
             return heuristic_risk
 
-        # ===== STEP 4: ML model prediction =====
         if model is not None:
             try:
                 features, _ = extract_features_from_url(url)
