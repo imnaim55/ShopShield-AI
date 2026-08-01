@@ -74,7 +74,7 @@ def auto_retrain(min_samples=1, force=True):
         all_features = []
         all_labels = []
         
-        # Load original dataset if exists
+        # Load original dataset if exists and has enough data
         if os.path.exists(ORIGINAL_DATASET):
             try:
                 original_df = pd.read_csv(ORIGINAL_DATASET)
@@ -87,11 +87,12 @@ def auto_retrain(min_samples=1, force=True):
                     all_labels.extend(y_orig.values.tolist())
                     debug_print(f"   ✅ Added {len(X_orig)} original samples")
                 else:
-                    debug_print("   ⚠️ Missing columns in original dataset")
+                    debug_print("   ⚠️ Missing columns in original dataset, using only feedback")
             except Exception as e:
                 debug_print(f"   ⚠️ Error loading dataset: {e}")
         else:
             debug_print(f"⚠️ Original dataset not found: {ORIGINAL_DATASET}")
+            debug_print("   Using only feedback data for training")
         
         # Process feedback
         processed = 0
@@ -108,8 +109,9 @@ def auto_retrain(min_samples=1, force=True):
         
         debug_print(f"📊 Processed {processed} feedback URLs")
         
-        if len(all_features) < 10:
-            debug_print(f"❌ Not enough samples: {len(all_features)}")
+        # CHANGE: Reduced from 10 to 5
+        if len(all_features) < 5:
+            debug_print(f"❌ Not enough samples: {len(all_features)} (need at least 5)")
             return False
         
         X = np.array(all_features)
@@ -118,32 +120,46 @@ def auto_retrain(min_samples=1, force=True):
         
         # 6. Train model
         debug_print("🔄 Training Random Forest model...")
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42, stratify=y
-        )
         
-        model = RandomForestClassifier(
-            n_estimators=100,
-            max_depth=10,
-            min_samples_split=5,
-            min_samples_leaf=2,
-            random_state=42,
-            n_jobs=-1,
-            class_weight='balanced'
-        )
-        model.fit(X_train, y_train)
+        # If only 5 samples, use all for training (no test split)
+        if len(X) < 10:
+            model = RandomForestClassifier(
+                n_estimators=50,
+                max_depth=8,
+                min_samples_split=3,
+                min_samples_leaf=2,
+                random_state=42,
+                n_jobs=-1,
+                class_weight='balanced'
+            )
+            model.fit(X, y)
+            debug_print("   ⚠️ Small dataset: used all samples for training")
+        else:
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.2, random_state=42, stratify=y
+            )
+            model = RandomForestClassifier(
+                n_estimators=100,
+                max_depth=10,
+                min_samples_split=5,
+                min_samples_leaf=2,
+                random_state=42,
+                n_jobs=-1,
+                class_weight='balanced'
+            )
+            model.fit(X_train, y_train)
+            
+            # Evaluate
+            y_pred = model.predict(X_test)
+            debug_print(f"📈 Accuracy: {accuracy_score(y_test, y_pred):.4f}")
         
-        # 7. Evaluate
-        y_pred = model.predict(X_test)
-        debug_print(f"📈 Accuracy: {accuracy_score(y_test, y_pred):.4f}")
-        
-        # 8. Save model
+        # 7. Save model
         os.makedirs("models", exist_ok=True)
         with open(MODEL_PATH, 'wb') as f:
             pickle.dump(model, f)
         debug_print(f"✅ Model saved to {MODEL_PATH}")
         
-        # 9. Archive feedback
+        # 8. Archive feedback
         archive_feedback()
         debug_print("✅ Feedback archived")
         
