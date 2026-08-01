@@ -1,3 +1,2 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:bebfba7ed52c162a6c9271c752b264a472b862ea7d637e9c65a685597710bb60
-size 374
+url,risk_score,verdict,comment,timestamp,url_length,num_dots,has_https,has_ip,num_subdirs,num_params,suspicious_words,special_char_count,digits_count,version https://git-lfs.github.com/spec/v1
+https://vegamovie.me/,82.35,phishing,,2026-08-01T12:48:52.980163,,,,,,,,,,

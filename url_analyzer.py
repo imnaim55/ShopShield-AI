@@ -13,68 +13,82 @@ from collections import Counter
 
 MODEL_PATH = os.path.join("models", "url_phishing_model.pkl")
 
+# ===== STRICTER HEURISTIC RULES =====
+
 SAFE_DOMAINS = [
-    'stackoverflow.com', 'github.com', 'amazon.com', 'google.com',
+    'amazon.com', 'google.com', 'github.com', 'stackoverflow.com',
     'microsoft.com', 'apple.com', 'netflix.com', 'spotify.com',
-    'nike.com', 'myntra.com', 'boat-lifestyle.com', 'blinkit.com',
-    'flipkart.com', 'ajio.com', 'nykaa.com', 'zara.com', 'hm.com',
-    'adidas.com', 'puma.com', 'reebok.com', 'underarmour.com',
-    'walmart.com', 'target.com', 'bestbuy.com', 'costco.com',
-    'youtube.com', 'reddit.com', 'twitter.com', 'linkedin.com',
-    'facebook.com', 'instagram.com', 'python.org', 'wikipedia.org',
-    'dropbox.com', 'salesforce.com', 'adobe.com', 'oracle.com'
+    'nike.com', 'myntra.com', 'flipkart.com', 'ajio.com',
+    'nykaa.com', 'zara.com', 'hm.com', 'adidas.com', 'puma.com',
+    'walmart.com', 'target.com', 'youtube.com', 'reddit.com',
+    'twitter.com', 'linkedin.com', 'facebook.com', 'instagram.com',
+    'python.org', 'wikipedia.org', 'dropbox.com'
 ]
+
+# ===== EXPANDED SUSPICIOUS PATTERNS =====
+
+SUSPICIOUS_KEYWORDS = [
+    "login", "verify", "account", "secure", "payment", "free",
+    "wallet", "bank", "confirm", "update", "validate",
+    "authenticate", "password", "reset", "recover", "security",
+    "signin", "sign-in", "log-in", "user", "profile",
+    "gift", "bonus", "offer", "deal", "promo", "discount",
+    "claim", "winner", "prize", "lucky", "congratulations",
+    "download", "movie", "film", "stream", "watch", "hd",
+    "720p", "1080p", "4k", "bluray", "dvd", "torrent",
+    "subtitle", "english", "hindi", "tamil", "telugu",
+    "malayalam", "kannada", "punjabi", "bengali"
+]
+
+# ===== MORE AGGRESSIVE SCORING =====
 
 SUSPICIOUS_TLDS = [
     '.xyz', '.top', '.club', '.online', '.site', '.win', '.bid',
-    '.tk', '.ml', '.ga', '.cf', '.gq', '.click', '.download', '.biz', '.info',
-    '.stream', '.date', '.men', '.loan', '.racing', '.review', '.trade'
-]
-
-SUSPICIOUS_KEYWORDS = [
-    "login", "verify", "account", "secure", "payment", "free", "wallet",
-    "bank", "confirm", "update", "validate", "authenticate", "password",
-    "reset", "recover", "security", "access", "gift", "offer"
+    '.tk', '.ml', '.ga', '.cf', '.gq', '.click', '.download', 
+    '.biz', '.info', '.stream', '.date', '.men', '.loan', 
+    '.racing', '.review', '.trade', '.lol', '.work', '.fun'
 ]
 
 BRAND_PATTERNS = [
-    "paypal", "amazon", "microsoft", "apple", "google",
-    "facebook", "netflix", "spotify"
+    "paypal", "amazon", "microsoft", "apple", "google", 
+    "facebook", "netflix", "spotify", "roblox", "instagram",
+    "whatsapp", "telegram", "discord", "twitch", "twitter"
 ]
 
 SUSPICIOUS_PATHS = [
-    "/verify", "/login", "/account", "/secure", "/confirm", "/update", "/reset"
-]
-
-SHORTENING_SERVICES = [
-    "bit.ly", "tinyurl", "goo.gl", "short.link", "is.gd",
-    "tiny.cc", "ow.ly", "buff.ly"
+    "/verify", "/login", "/account", "/secure", "/confirm", 
+    "/update", "/reset", "/auth", "/signin", "/sign-in",
+    "/log-in", "/user", "/profile", "/wallet", "/payment",
+    "/bank", "/funds", "/withdraw", "/deposit", "/transfer"
 ]
 
 SCAM_PATTERNS = [
     "free-gift", "free-offer", "gift-offer", "bonus-offer",
     "win-prize", "claim-prize", "lucky-winner", "freebie",
-    "gift-card", "freebie", "prize", "sweepstakes"
+    "gift-card", "free-money", "earn-money", "make-money",
+    "quick-cash", "easy-money", "get-rich", "investment"
 ]
 
-UNUSUAL_PORTS = [":8080", ":8443", ":3000", ":5000", ":8000", ":8888", ":4443"]
+UNUSUAL_PORTS = [":8080", ":8443", ":3000", ":5000", ":8000", ":8888", ":4443", ":7000"]
 IP_PATTERN = r"(\d{1,3}\.){3}\d{1,3}"
 
 
 def load_model():
-    """Load model from local path; if missing, return None."""
+    """Load model from local path; if missing, return None and show warning."""
     if os.path.exists(MODEL_PATH):
         try:
             with open(MODEL_PATH, "rb") as f:
                 model = pickle.load(f)
-            print(f"Model loaded locally from {MODEL_PATH}")
+            print(f"✅ Model loaded from {MODEL_PATH}")
+            print(f"   Features: {model.n_features_in_}")
+            print(f"   Trees: {model.n_estimators}")
             return model
         except Exception as e:
-            print(f"Error loading local model: {e}")
+            print(f"⚠️ Error loading model: {e}")
     else:
-        print("Model file not found. Will use heuristic analysis only.")
+        print("⚠️ Model file not found. Please run train_initial_model.py first.")
+        print(f"   Expected path: {MODEL_PATH}")
     return None
-
 
 model = load_model()
 
@@ -111,10 +125,7 @@ def extract_features_from_url(url):
     path_and_query = parsed.path + parsed.query
     suspicious_words = sum(1 for word in SUSPICIOUS_KEYWORDS if word in path_and_query)
     
-    special_char_count = sum(
-        url.count(c) for c in ["-", "@", "_", "?", "=", "%", "&"]
-    )
-    
+    special_char_count = sum(url.count(c) for c in ["-", "@", "_", "?", "=", "%", "&"])
     digits_count = sum(ch.isdigit() for ch in url)
     
     feature_df = pd.DataFrame({
@@ -147,120 +158,79 @@ def extract_features_from_url(url):
     return feature_df, extra_features
 
 
-def is_legitimate_ecommerce(url_lower, domain):
-    legitimate_patterns = [
-        r'nike\.com/.*/t/',
-        r'myntra\.com/',
-        r'boat-lifestyle\.com/',
-        r'blinkit\.com/',
-        r'amazon\.[a-z]+/',
-        r'flipkart\.com/',
-        r'ajio\.com/',
-        r'nykaa\.com/',
-        r'zara\.com/',
-        r'hm\.com/',
-        r'adidas\.com/',
-        r'puma\.com/',
-        r'reebok\.com/',
-        r'underarmour\.com/',
-        r'walmart\.com/',
-        r'target\.com/',
-        r'bestbuy\.com/',
-        r'costco\.com/',
-    ]
-    for pattern in legitimate_patterns:
-        if re.search(pattern, url_lower):
-            return True
-    return False
-
-
-def is_brand_impersonation(url_lower, domain):
-    for brand in BRAND_PATTERNS:
-        if brand in url_lower:
-            if brand in domain:
-                if domain == brand + ".com" or domain == brand + ".in" or domain == brand + ".co.in":
-                    return False
-                if domain.endswith("." + brand + ".com") or domain.endswith("." + brand + ".in"):
-                    return False
-            if any(sus in url_lower for sus in ["verify", "login", "account", "secure", "update"]):
-                return True
-    return False
-
-
 def heuristic_analysis(url):
     url_lower = url.lower()
     risk = 0.0
     
+    # IP Address - High risk
     if re.search(IP_PATTERN, url_lower):
-        risk += 40
+        risk += 50
     
+    # Unusual ports
     if any(port in url_lower for port in UNUSUAL_PORTS):
+        risk += 35
+    
+    # Suspicious TLDs
+    if any(tld in url_lower for tld in SUSPICIOUS_TLDS):
         risk += 25
     
-    if any(tld in url_lower for tld in SUSPICIOUS_TLDS):
-        risk += 20
-    
+    # Suspicious keywords
     keyword_count = sum(1 for word in SUSPICIOUS_KEYWORDS if word in url_lower)
     if keyword_count >= 3:
-        risk += 15
+        risk += 25
     elif keyword_count >= 2:
-        risk += 10
+        risk += 15
     elif keyword_count >= 1:
-        risk += 5
+        risk += 8
     
+    # Brand impersonation
     for brand in BRAND_PATTERNS:
         if brand in url_lower:
-            if any(sus in url_lower for sus in ["verify", "login", "account", "secure", "update"]):
-                risk += 15
+            if any(sus in url_lower for sus in ["verify", "login", "account", "secure"]):
+                risk += 30
                 break
     
+    # No HTTPS
     if not url_lower.startswith("https://"):
         risk += 10
     
-    if len(url_lower) > 80:
-        risk += 5
-    elif len(url_lower) < 15:
-        risk += 5
-    
-    digit_count = sum(c.isdigit() for c in url_lower)
-    if digit_count > 8:
-        risk += 10
-    
-    if url_lower.count("-") > 3:
-        risk += 5
-    
+    # Suspicious paths
     if any(path in url_lower for path in SUSPICIOUS_PATHS):
-        risk += 8
+        risk += 15
     
+    # @ symbol
     if "@" in url_lower:
-        risk += 15
-    
-    if any(service in url_lower for service in SHORTENING_SERVICES):
-        risk += 15
-    
-    if any(pattern in url_lower for pattern in SCAM_PATTERNS):
         risk += 20
+    
+    # Scam patterns
+    if any(pattern in url_lower for pattern in SCAM_PATTERNS):
+        risk += 25
     
     return min(100.0, risk)
 
 
 def predict_url_risk(url):
+    """Predict phishing risk using heuristic + ML."""
     try:
         url_lower = url.lower()
         domain = urllib.parse.urlparse(url).netloc.lower()
         
+        # 1. Whitelist check - SAFE
         for safe_domain in SAFE_DOMAINS:
             if domain == safe_domain or domain.endswith('.' + safe_domain):
+                print(f"✅ Safe domain: {domain}")
                 return 5.0
         
-        if is_legitimate_ecommerce(url_lower, domain):
-            return 8.0
-        
+        # 2. Run heuristic analysis
         heuristic_risk = heuristic_analysis(url)
+        print(f"🔍 Heuristic risk: {heuristic_risk}%")
         
-        if heuristic_risk < 30:
+        # 3. If heuristic says high risk, return it early
+        if heuristic_risk >= 70:
+            print(f"🚨 High risk from heuristic: {heuristic_risk}%")
             return heuristic_risk
         
+        # 4. ML model prediction (if available)
         if model is not None:
             try:
                 features, _ = extract_features_from_url(url)
@@ -272,21 +242,18 @@ def predict_url_risk(url):
                     else:
                         phishing_prob = probabilities[1] if len(probabilities) > 1 else probabilities[0]
                     ml_risk = float(round(phishing_prob * 100, 2))
-                    if heuristic_risk >= 70 and ml_risk >= 70:
-                        return max(heuristic_risk, ml_risk)
-                    elif heuristic_risk >= 50 and ml_risk >= 50:
-                        return min(100.0, (heuristic_risk * 0.6) + (ml_risk * 0.4))
-            except Exception:
-                pass
+                    print(f"🤖 ML risk: {ml_risk}%")
+                    
+                    # Combine: Take the higher of heuristic and ML (conservative approach)
+                    final_risk = max(heuristic_risk, ml_risk)
+                    return min(100.0, final_risk)
+            except Exception as e:
+                print(f"ML error: {e}")
         
         return heuristic_risk
-        
-    except Exception:
+    except Exception as e:
+        print(f"Prediction error: {e}")
         return heuristic_analysis(url)
-
-
-def predict_batch_risk(urls):
-    return {url: predict_url_risk(url) for url in urls}
 
 
 def get_model_info():
@@ -297,39 +264,21 @@ def get_model_info():
         "type": type(model).__name__,
         "features": model.n_features_in_,
         "classes": model.classes_.tolist() if hasattr(model, 'classes_') else "Unknown",
-        "has_class_weight": hasattr(model, 'class_weight')
+        "trees": model.n_estimators if hasattr(model, 'n_estimators') else "Unknown"
     }
 
 
 if __name__ == "__main__":
-    print("=" * 70)
-    print("Testing URL Analyzer")
-    print("=" * 70)
-    
     test_urls = [
-        "https://www.nykaa.com/skin/c/8377",
-        "https://www.nike.com/in/t/air-max-shoes-PmlK0x",
-        "https://www.myntra.com/men-casual-shirts",
-        "https://www.boat-lifestyle.com/collections/wireless-earphones",
-        "https://www.blinkit.com/categories/grocery-staples",
         "https://www.amazon.com",
         "https://www.google.com",
-        "https://github.com",
         "http://103.20.213.34:8080/free-shop-login",
         "http://192.168.1.1/login",
         "https://secure-paypal-verify.xyz",
         "http://free-gift-offer.biz",
+        "https://www.nykaa.com/skin/c/8377",
     ]
-    
-    print("\nPredictions:")
-    print("-" * 70)
-    
     for url in test_urls:
         risk = predict_url_risk(url)
-        status = "PHISHING" if risk >= 70 else "SUSPICIOUS" if risk >= 30 else "SAFE"
-        print(f"{status}: {url[:50]}... ({risk:.1f}%)")
-    
-    print("=" * 70)
-    print("\nModel Info:")
-    print(get_model_info())
-    print("=" * 70)
+        status = "🔴 PHISHING" if risk >= 70 else "🟡 SUSPICIOUS" if risk >= 30 else "🟢 SAFE"
+        print(f"{status}: {url} -> {risk:.1f}%")
