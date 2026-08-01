@@ -4,6 +4,7 @@ Developed by Naim Shaikh
 """
 
 import os
+import sys
 import pandas as pd
 from datetime import datetime
 import requests
@@ -16,9 +17,13 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 HF_DATASET_REPO = "imnaim55/shopshield-feedback"
 HF_MODEL_REPO = "imnaim55/shopshield-model"
 
+def debug_print(msg):
+    print(msg)
+    sys.stdout.flush()
+
 
 def save_feedback(url, risk, verdict, comment=""):
-    """Save user feedback locally."""
+    """Save user feedback locally and upload to Hugging Face."""
     try:
         os.makedirs("data", exist_ok=True)
         
@@ -30,6 +35,7 @@ def save_feedback(url, risk, verdict, comment=""):
             "timestamp": datetime.now().isoformat()
         }
         
+        # Save locally
         if os.path.exists(FEEDBACK_FILE) and os.path.getsize(FEEDBACK_FILE) > 0:
             try:
                 df = pd.read_csv(FEEDBACK_FILE)
@@ -40,9 +46,45 @@ def save_feedback(url, risk, verdict, comment=""):
         
         df = pd.concat([df, pd.DataFrame([feedback_entry])], ignore_index=True)
         df.to_csv(FEEDBACK_FILE, index=False)
+        debug_print(f"✅ Feedback saved locally: {url}")
+        
+        # Upload to Hugging Face
+        if HF_TOKEN:
+            debug_print("📤 Uploading feedback to Hugging Face...")
+            success = upload_feedback_to_hub(df)
+            debug_print(f"   Upload result: {'✅ SUCCESS' if success else '❌ FAILED'}")
+        else:
+            debug_print("❌ HF_TOKEN not set! Feedback not uploaded.")
+        
         return True
     except Exception as e:
-        print(f"Error saving feedback: {e}")
+        debug_print(f"❌ Error saving feedback: {e}")
+        return False
+
+
+def upload_feedback_to_hub(df):
+    """Upload feedback CSV to Hugging Face Hub."""
+    try:
+        # Convert DataFrame to CSV
+        csv_data = df.to_csv(index=False)
+        
+        # Upload using Hugging Face API
+        url = f"https://huggingface.co/api/datasets/{HF_DATASET_REPO}/upload/main/feedback.csv"
+        headers = {
+            "Authorization": f"Bearer {HF_TOKEN}",
+            "Content-Type": "application/octet-stream"
+        }
+        
+        response = requests.put(url, headers=headers, data=csv_data.encode('utf-8'))
+        
+        if response.status_code == 200 or response.status_code == 201:
+            debug_print(f"✅ Feedback uploaded to {HF_DATASET_REPO}")
+            return True
+        else:
+            debug_print(f"❌ Upload failed: {response.status_code} - {response.text}")
+            return False
+    except Exception as e:
+        debug_print(f"❌ Upload error: {e}")
         return False
 
 
@@ -95,4 +137,31 @@ def archive_feedback():
         pd.DataFrame(columns=df.columns).to_csv(FEEDBACK_FILE, index=False)
         return True
     except:
+        return False
+
+
+def upload_model_to_hub(model_path="models/url_phishing_model.pkl"):
+    """Upload trained model to Hugging Face Hub."""
+    if not HF_TOKEN or not os.path.exists(model_path):
+        return False
+    try:
+        with open(model_path, 'rb') as f:
+            model_data = f.read()
+        
+        url = f"https://huggingface.co/api/models/{HF_MODEL_REPO}/upload/main/url_phishing_model.pkl"
+        headers = {
+            "Authorization": f"Bearer {HF_TOKEN}",
+            "Content-Type": "application/octet-stream"
+        }
+        
+        response = requests.put(url, headers=headers, data=model_data)
+        
+        if response.status_code == 200 or response.status_code == 201:
+            debug_print(f"✅ Model uploaded to {HF_MODEL_REPO}")
+            return True
+        else:
+            debug_print(f"❌ Model upload failed: {response.status_code}")
+            return False
+    except Exception as e:
+        debug_print(f"❌ Model upload error: {e}")
         return False

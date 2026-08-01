@@ -159,6 +159,14 @@ def auto_retrain(min_samples=1, force=True):
             pickle.dump(model, f)
         debug_print(f"✅ Model saved to {MODEL_PATH}")
         
+        # Upload model to Hugging Face
+        if HF_TOKEN:
+            debug_print("📤 Uploading model to Hugging Face...")
+            success = upload_model_to_hub()
+            debug_print(f"   Upload result: {'✅ SUCCESS' if success else '❌ FAILED'}")
+        else:
+            debug_print("❌ HF_TOKEN not set! Model not uploaded.")
+        
         # 8. Archive feedback
         archive_feedback()
         debug_print("✅ Feedback archived")
