@@ -3,12 +3,12 @@ URL Phishing Detection Module - ShopShield AI
 Developed by Naim Shaikh
 """
 
+import os
 import urllib.parse
 import pickle
 import pandas as pd
 import re
 import math
-import os
 from collections import Counter
 
 MODEL_PATH = os.path.join("models", "url_phishing_model.pkl")
