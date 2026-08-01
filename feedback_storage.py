@@ -2,6 +2,10 @@
 Feedback Storage Module - ShopShield AI
 Developed by Naim Shaikh
 """
+# Hugging Face Config
+HF_TOKEN = os.getenv("HF_TOKEN")
+HF_DATASET_REPO = "imnaim55/shopshield-feedback"
+HF_MODEL_REPO = "imnaim55/shopshield-model"
 
 import pandas as pd
 from datetime import datetime

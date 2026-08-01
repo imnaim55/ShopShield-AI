@@ -2,6 +2,9 @@
 Auto-Retraining Module - ShopShield AI
 Developed by Naim Shaikh
 """
+# Hugging Face Config
+HF_TOKEN = os.getenv("HF_TOKEN")
+HF_MODEL_REPO = "imnaim55/shopshield-model"
 
 import pandas as pd
 import pickle
