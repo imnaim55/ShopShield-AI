@@ -24,10 +24,11 @@ if 'admin_logged_in' not in st.session_state:
 if 'retrain_success_time' not in st.session_state:
     st.session_state.retrain_success_time = None
 
+
 def get_indian_time():
-    """Get current time in IST (Indian Standard Time)."""
     ist = pytz.timezone('Asia/Kolkata')
     return datetime.now(ist)
+
 
 def login_page():
     st.title("Admin Login")
@@ -38,17 +39,21 @@ def login_page():
         password = st.text_input("Password", type="password", placeholder="Enter password")
         
         if st.button("Login", use_container_width=True):
+            # Hardcoded authentication (no external file needed)
             if username == "admin" and password == "ShopShield2024!":
                 st.session_state.admin_logged_in = True
+                st.session_state.admin_username = username
                 st.rerun()
             else:
                 st.error("Invalid credentials")
 
 
+# Show login page if not logged in
 if not st.session_state.admin_logged_in:
     login_page()
     st.stop()
 
+# Main Dashboard (only visible after login)
 st.title("Admin Dashboard")
 
 # Sidebar
