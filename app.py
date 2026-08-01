@@ -46,11 +46,41 @@ if 'risk_score' not in st.session_state:
     st.session_state.risk_score = None
 if 'admin_logged_in' not in st.session_state:
     st.session_state.admin_logged_in = False
+if 'auto_retrain_done' not in st.session_state:
+    st.session_state.auto_retrain_done = False
 
 
 def analyze_url(url):
     risk = predict_url_risk(url)
     return min(100.0, float(risk if risk is not None else 0.0))
+
+
+# ======================== AUTO-RETRAIN ON PAGE LOAD ========================
+# This runs every time the page loads (including after feedback submission)
+def check_and_auto_retrain():
+    """Auto-retrain if 5+ feedback entries exist and not done in this session."""
+    try:
+        from auto_train import auto_retrain
+        feedback_count = get_feedback_count()
+        
+        # Only retrain if 5+ feedback and not done yet in this session
+        if feedback_count >= 5 and not st.session_state.auto_retrain_done:
+            print(f"🔄 Auto-retraining triggered! ({feedback_count} feedback entries)")
+            success = auto_retrain(min_samples=1, force=True)
+            if success:
+                st.session_state.auto_retrain_done = True
+                st.session_state.retrain_success_time = time.strftime("%Y-%m-%d %H:%M:%S")
+                print("✅ Auto-retraining completed successfully!")
+                # Rerun to show updated state
+                st.rerun()
+            else:
+                print("❌ Auto-retraining failed")
+    except Exception as e:
+        print(f"❌ Auto-retrain error: {e}")
+
+# Run auto-retrain check on page load (only if not already done in this session)
+if not st.session_state.auto_retrain_done:
+    check_and_auto_retrain()
 
 
 # ======================== SIDEBAR ========================
@@ -93,7 +123,10 @@ with st.sidebar:
         st.rerun()
     
     st.divider()
-    st.caption(f"📝 Feedback entries: {get_feedback_count()}")
+    feedback_count = get_feedback_count()
+    st.caption(f"📝 Feedback entries: {feedback_count}")
+    if feedback_count >= 5:
+        st.success("🔄 Auto-retraining ready!")
     st.caption("🤖 Detects phishing using ML + heuristics")
 
 
@@ -205,18 +238,21 @@ if st.session_state.page == 'main':
                 if save_feedback(current_url, risk, "safe"):
                     st.session_state.feedback_success = True
                     st.session_state.feedback_message = "Thank you for your feedback!"
+                    st.session_state.auto_retrain_done = False  # Reset for auto-retrain
                     st.rerun()
         with col2:
             if st.button("❌ Yes - Phishing", use_container_width=True):
                 if save_feedback(current_url, risk, "phishing"):
                     st.session_state.feedback_success = True
                     st.session_state.feedback_message = "Thank you for your feedback!"
+                    st.session_state.auto_retrain_done = False  # Reset for auto-retrain
                     st.rerun()
         with col3:
             if st.button("❓ Not Sure", use_container_width=True):
                 if save_feedback(current_url, risk, "uncertain"):
                     st.session_state.feedback_success = True
                     st.session_state.feedback_message = "Feedback recorded as uncertain."
+                    st.session_state.auto_retrain_done = False  # Reset for auto-retrain
                     st.rerun()
         
         if st.button("🔄 New Analysis", use_container_width=True):
@@ -271,11 +307,21 @@ else:
             
             st.divider()
             
-            if st.button("🔄 Force Retrain", use_container_width=True):
+            # Show auto-retrain status
+            feedback_count = get_feedback_count()
+            if feedback_count >= 5:
+                st.success("✅ Auto-retraining will trigger on next page load")
+            else:
+                st.info(f"⏳ {feedback_count}/5 feedback needed for auto-retrain")
+            
+            st.divider()
+            
+            if st.button("🔄 Force Retrain (Manual)", use_container_width=True):
                 with st.spinner("Retraining model..."):
                     try:
                         if auto_retrain(min_samples=1, force=True):
                             st.session_state.retrain_success_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            st.session_state.auto_retrain_done = True
                             st.success(f"✅ Model retrained successfully at {st.session_state.retrain_success_time}")
                             time.sleep(1)
                             st.rerun()
