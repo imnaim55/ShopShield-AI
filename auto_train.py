@@ -11,10 +11,14 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from feedback_storage import get_feedback, archive_feedback
+from feedback_storage import get_feedback, archive_feedback, upload_model_to_hub
 from url_analyzer import extract_features_from_url
 import warnings
 warnings.filterwarnings('ignore')
+
+# Hugging Face Config
+HF_TOKEN = os.getenv("HF_TOKEN")
+HF_MODEL_REPO = "imnaim55/shopshield-model"
 
 MODEL_PATH = "models/url_phishing_model.pkl"
 ORIGINAL_DATASET = "data/phishing_features.csv"
@@ -24,7 +28,6 @@ FEATURE_COLUMNS = [
     "special_char_count", "digits_count"
 ]
 
-# Force print to be visible in logs
 def debug_print(msg):
     print(msg)
     sys.stdout.flush()
@@ -74,7 +77,7 @@ def auto_retrain(min_samples=1, force=True):
         all_features = []
         all_labels = []
         
-        # Load original dataset if exists and has enough data
+        # Load original dataset if exists
         if os.path.exists(ORIGINAL_DATASET):
             try:
                 original_df = pd.read_csv(ORIGINAL_DATASET)
@@ -87,12 +90,11 @@ def auto_retrain(min_samples=1, force=True):
                     all_labels.extend(y_orig.values.tolist())
                     debug_print(f"   ✅ Added {len(X_orig)} original samples")
                 else:
-                    debug_print("   ⚠️ Missing columns in original dataset, using only feedback")
+                    debug_print("   ⚠️ Missing columns in original dataset")
             except Exception as e:
                 debug_print(f"   ⚠️ Error loading dataset: {e}")
         else:
             debug_print(f"⚠️ Original dataset not found: {ORIGINAL_DATASET}")
-            debug_print("   Using only feedback data for training")
         
         # Process feedback
         processed = 0
@@ -109,7 +111,6 @@ def auto_retrain(min_samples=1, force=True):
         
         debug_print(f"📊 Processed {processed} feedback URLs")
         
-        # CHANGE: Reduced from 10 to 5
         if len(all_features) < 5:
             debug_print(f"❌ Not enough samples: {len(all_features)} (need at least 5)")
             return False
@@ -159,15 +160,15 @@ def auto_retrain(min_samples=1, force=True):
             pickle.dump(model, f)
         debug_print(f"✅ Model saved to {MODEL_PATH}")
         
-        # Upload model to Hugging Face
+        # 8. Upload model to Hugging Face
         if HF_TOKEN:
             debug_print("📤 Uploading model to Hugging Face...")
-            success = upload_model_to_hub()
+            success = upload_model_to_hub(MODEL_PATH)
             debug_print(f"   Upload result: {'✅ SUCCESS' if success else '❌ FAILED'}")
         else:
-            debug_print("❌ HF_TOKEN not set! Model not uploaded.")
+            debug_print("⚠️ HF_TOKEN not set! Model not uploaded.")
         
-        # 8. Archive feedback
+        # 9. Archive feedback
         archive_feedback()
         debug_print("✅ Feedback archived")
         
@@ -184,5 +185,4 @@ def auto_retrain(min_samples=1, force=True):
 
 
 if __name__ == "__main__":
-    # For testing
     auto_retrain(min_samples=1, force=True)
