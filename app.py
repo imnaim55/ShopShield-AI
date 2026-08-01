@@ -76,9 +76,13 @@ if 'admin_logged_in' not in st.session_state:
     st.session_state.admin_logged_in = False
 if 'auto_retrain_done' not in st.session_state:
     st.session_state.auto_retrain_done = False
+if 'is_dark_pattern_only' not in st.session_state:
+    st.session_state.is_dark_pattern_only = False
 
 
 def analyze_url(url):
+    if not url or not url.strip():
+        return 0.0
     risk = predict_url_risk(url)
     return min(100.0, float(risk if risk is not None else 0.0))
 
@@ -181,27 +185,33 @@ with st.sidebar:
     st.divider()
     
     url_input = st.text_input(
-        "Website URL", 
+        "Website URL (Optional)", 
         placeholder="https://example.com",
         key="url_input_main",
         value=st.session_state.get('url_input_main', '')
     )
     
     text_input = st.text_area(
-        "Website Content (Optional)", 
-        height=100, 
+        "Website Content", 
+        height=150, 
         placeholder="Paste website text for dark pattern detection...",
         key="text_input_main",
         value=st.session_state.get('text_input_main', '')
     )
     
-    analyze = st.button("Analyze Website", use_container_width=True, key="analyze_btn")
+    analyze = st.button("Analyze", use_container_width=True, key="analyze_btn")
     
-    if analyze and url_input.strip():
-        st.session_state.current_url = url_input
-        st.session_state.current_text = text_input if text_input.strip() else st.session_state.current_text
-        st.session_state.show_results = True
-        st.rerun()
+    if analyze:
+        has_url = url_input.strip()
+        has_text = text_input.strip()
+        
+        if not has_url and not has_text:
+            st.warning("Please enter a URL or paste website content.")
+        else:
+            st.session_state.current_url = url_input if has_url else ""
+            st.session_state.current_text = text_input if has_text else ""
+            st.session_state.show_results = True
+            st.rerun()
     
     st.divider()
     feedback_count = get_feedback_count()
@@ -217,7 +227,18 @@ if st.session_state.page == 'main':
     if not st.session_state.show_results:
         st.title("ShopShield AI")
         st.subheader("AI-Powered Phishing Detection")
-        st.write("Enter a URL in the sidebar and click 'Analyze Website' to check if it is safe or a phishing attempt.")
+        st.write("Enter a URL OR paste website content in the sidebar to analyze.")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("**URL Analysis**")
+            st.caption("Check if a website is phishing")
+            st.code("http://103.20.213.34:8080/free-shop-login")
+        
+        with col2:
+            st.markdown("**Dark Pattern Analysis**")
+            st.caption("Detect deceptive website tactics")
+            st.code("Hurry! Limited time offer! Buy now!")
         
         with st.expander("Example URLs to Test"):
             st.code("http://103.20.213.34:8080/free-shop-login")
@@ -232,54 +253,67 @@ if st.session_state.page == 'main':
         current_url = st.session_state.get('current_url', '')
         current_text = st.session_state.get('current_text', '')
         
-        if not current_url.strip():
-            st.warning("Please enter a URL in the sidebar and click 'Analyze Website'.")
+        has_url = current_url.strip()
+        has_text = current_text.strip()
+        
+        # If neither URL nor text, show error
+        if not has_url and not has_text:
+            st.warning("No content to analyze.")
             if st.button("Back", key="back_btn"):
                 st.session_state.show_results = False
                 st.rerun()
             st.stop()
         
-        with st.spinner("Analyzing URL..."):
-            time.sleep(0.5)
-            risk = analyze_url(current_url)
-            st.session_state.risk_score = risk
-        
-        if risk < 30:
-            risk_level, verdict, color = "Low", "Safe", "#28a745"
-        elif risk < 70:
-            risk_level, verdict, color = "Medium", "Suspicious", "#ff9800"
+        # Analyze URL if provided
+        if has_url:
+            with st.spinner("Analyzing URL..."):
+                time.sleep(0.5)
+                risk = analyze_url(current_url)
+                st.session_state.risk_score = risk
         else:
-            risk_level, verdict, color = "High", "Phishing Detected", "#dc3545"
+            risk = 0
+            st.info("Dark Pattern Analysis only - No URL provided.")
         
-        st.title("Security Analysis Report")
+        # Show risk only if URL was analyzed
+        if has_url:
+            if risk < 30:
+                risk_level, verdict, color = "Low", "Safe", "#28a745"
+            elif risk < 70:
+                risk_level, verdict, color = "Medium", "Suspicious", "#ff9800"
+            else:
+                risk_level, verdict, color = "High", "Phishing Detected", "#dc3545"
+            
+            st.title("Security Analysis Report")
+            
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Phishing Risk", f"{risk:.2f}%")
+            col2.metric("Risk Level", risk_level)
+            col3.metric("Verdict", verdict)
+            
+            st.progress(int(risk))
+            st.markdown(f'<div class="risk-box" style="background:{color}">Overall Risk: {risk:.2f}%</div>', unsafe_allow_html=True)
+            
+            st.divider()
+            
+            st.subheader("URL Details")
+            st.code(current_url)
+            
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Length", len(current_url))
+            col2.metric("HTTPS", "Yes" if current_url.startswith("https://") else "No")
+            col3.metric("Hyphens", current_url.count("-"))
+            col4.metric("Dots", current_url.count("."))
+            
+            st.divider()
         
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Phishing Risk", f"{risk:.2f}%")
-        col2.metric("Risk Level", risk_level)
-        col3.metric("Verdict", verdict)
-        
-        st.progress(int(risk))
-        st.markdown(f'<div class="risk-box" style="background:{color}">Overall Risk: {risk:.2f}%</div>', unsafe_allow_html=True)
-        
-        st.divider()
-        
-        st.subheader("URL Details")
-        st.code(current_url)
-        
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Length", len(current_url))
-        col2.metric("HTTPS", "Yes" if current_url.startswith("https://") else "No")
-        col3.metric("Hyphens", current_url.count("-"))
-        col4.metric("Dots", current_url.count("."))
-        
-        st.divider()
-        
-        # Enhanced Dark Pattern Analysis
+        # Enhanced Dark Pattern Analysis (works with or without URL)
         st.subheader("Dark Pattern Analysis")
         
-        if not current_text.strip():
-            st.info("No website content provided for dark pattern analysis.")
-            st.info("Tip: Paste website text in the sidebar for dark pattern detection.")
+        if not has_text:
+            if has_url:
+                st.info("No website content provided. Paste text in the sidebar for dark pattern analysis.")
+            else:
+                st.warning("Please paste some website text for dark pattern analysis.")
         else:
             found_patterns, total_score, severity_counts = analyze_dark_patterns(current_text)
             
@@ -317,40 +351,41 @@ if st.session_state.page == 'main':
                 st.success("No obvious dark patterns detected in the provided text.")
                 st.caption("The text appears to be free from common deceptive patterns.")
         
-        st.divider()
-        
-        st.subheader("Help Improve ShopShield AI")
-        st.write("Was this analysis correct? Your feedback helps train the model.")
-        
-        if st.session_state.feedback_success:
+        # Feedback Section (only if URL was analyzed)
+        if has_url:
+            st.divider()
+            st.subheader("Help Improve ShopShield AI")
+            st.write("Was this analysis correct? Your feedback helps train the model.")
+            
             if st.session_state.feedback_success:
-                st.success(st.session_state.feedback_message)
-            else:
-                st.error(st.session_state.feedback_message)
-            st.session_state.feedback_success = None
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("Yes - Safe", use_container_width=True):
-                if save_feedback(current_url, risk, "safe"):
-                    st.session_state.feedback_success = True
-                    st.session_state.feedback_message = "Thank you for your feedback!"
-                    st.session_state.auto_retrain_done = False
-                    st.rerun()
-        with col2:
-            if st.button("Yes - Phishing", use_container_width=True):
-                if save_feedback(current_url, risk, "phishing"):
-                    st.session_state.feedback_success = True
-                    st.session_state.feedback_message = "Thank you for your feedback!"
-                    st.session_state.auto_retrain_done = False
-                    st.rerun()
-        with col3:
-            if st.button("Not Sure", use_container_width=True):
-                if save_feedback(current_url, risk, "uncertain"):
-                    st.session_state.feedback_success = True
-                    st.session_state.feedback_message = "Feedback recorded as uncertain."
-                    st.session_state.auto_retrain_done = False
-                    st.rerun()
+                if st.session_state.feedback_success:
+                    st.success(st.session_state.feedback_message)
+                else:
+                    st.error(st.session_state.feedback_message)
+                st.session_state.feedback_success = None
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if st.button("Yes - Safe", use_container_width=True):
+                    if save_feedback(current_url, risk, "safe"):
+                        st.session_state.feedback_success = True
+                        st.session_state.feedback_message = "Thank you for your feedback!"
+                        st.session_state.auto_retrain_done = False
+                        st.rerun()
+            with col2:
+                if st.button("Yes - Phishing", use_container_width=True):
+                    if save_feedback(current_url, risk, "phishing"):
+                        st.session_state.feedback_success = True
+                        st.session_state.feedback_message = "Thank you for your feedback!"
+                        st.session_state.auto_retrain_done = False
+                        st.rerun()
+            with col3:
+                if st.button("Not Sure", use_container_width=True):
+                    if save_feedback(current_url, risk, "uncertain"):
+                        st.session_state.feedback_success = True
+                        st.session_state.feedback_message = "Feedback recorded as uncertain."
+                        st.session_state.auto_retrain_done = False
+                        st.rerun()
         
         if st.button("New Analysis", use_container_width=True):
             st.session_state.show_results = False
