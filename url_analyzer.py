@@ -11,6 +11,7 @@ import re
 import math
 from collections import Counter
 from huggingface_hub import hf_hub_download
+from feedback_storage import get_url_feedback_score, get_url_feedback_summary
 
 MODEL_PATH = os.path.join("models", "url_phishing_model.pkl")
 HF_MODEL_REPO = "imnaim55/shopshield-model"
@@ -73,7 +74,6 @@ IP_PATTERN = r"(\d{1,3}\.){3}\d{1,3}"
 def load_model():
     """Load model from Hugging Face Hub (virtual) with local fallback."""
     try:
-        # Try to download the latest model from Hugging Face
         print("Loading model from Hugging Face Hub...")
         model_path = hf_hub_download(
             repo_id=HF_MODEL_REPO,
@@ -214,15 +214,29 @@ def heuristic_analysis(url):
 
 
 def predict_url_risk(url):
+    """
+    Predict phishing risk using: Feedback Score > Heuristic > ML.
+    """
     try:
         url_lower = url.lower()
         domain = urllib.parse.urlparse(url).netloc.lower()
 
+        # ===== STEP 1: Check whitelist =====
         for safe_domain in SAFE_DOMAINS:
             if domain == safe_domain or domain.endswith('.' + safe_domain):
                 print(f"Safe domain: {domain}")
                 return 5.0
 
+        # ===== STEP 2: Check feedback-based score (VIRTUAL) =====
+        feedback_score = get_url_feedback_score(url, min_votes=3)
+        if feedback_score is not None:
+            print(f"Using feedback score: {feedback_score:.1f}%")
+            summary = get_url_feedback_summary(url)
+            if summary:
+                print(f"Votes: {summary['safe_votes']} safe, {summary['phishing_votes']} phishing")
+            return feedback_score
+
+        # ===== STEP 3: Heuristic analysis =====
         heuristic_risk = heuristic_analysis(url)
         print(f"Heuristic risk: {heuristic_risk}%")
 
@@ -230,6 +244,7 @@ def predict_url_risk(url):
             print(f"High risk from heuristic: {heuristic_risk}%")
             return heuristic_risk
 
+        # ===== STEP 4: ML model prediction =====
         if model is not None:
             try:
                 features, _ = extract_features_from_url(url)
@@ -267,18 +282,19 @@ def get_model_info():
 
 
 if __name__ == "__main__":
+    print("=" * 70)
+    print("Testing URL Analyzer with Feedback Scoring")
+    print("=" * 70)
+    
     test_urls = [
         "https://www.amazon.com",
         "https://www.google.com",
         "http://103.20.213.34:8080/free-shop-login",
-        "http://192.168.1.1/login",
         "https://secure-paypal-verify.xyz",
-        "http://free-gift-offer.biz",
-        "https://www.nykaa.com/skin/c/8377",
+        "https://hindmovie.icu",
+        "https://vegamovie.me",
     ]
-    print("=" * 70)
-    print("Testing URL Analyzer (Virtual Model)")
-    print("=" * 70)
+    
     for url in test_urls:
         risk = predict_url_risk(url)
         status = "PHISHING" if risk >= 70 else "SUSPICIOUS" if risk >= 30 else "SAFE"

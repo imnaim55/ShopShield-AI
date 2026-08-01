@@ -99,6 +99,73 @@ def get_feedback_count():
         return 0
 
 
+def get_url_feedback_score(url, min_votes=3):
+    """
+    Get feedback-based risk score for a specific URL.
+    
+    Args:
+        url: The URL to check
+        min_votes: Minimum votes required before using feedback score
+    
+    Returns:
+        float: Risk score (0-100) or None if not enough votes
+    """
+    try:
+        df = get_feedback()
+        if df.empty:
+            return None
+        
+        # Filter for the specific URL
+        url_feedback = df[df['url'] == url]
+        if url_feedback.empty:
+            return None
+        
+        # Count votes
+        safe_votes = len(url_feedback[url_feedback['verdict'] == 'safe'])
+        phishing_votes = len(url_feedback[url_feedback['verdict'] == 'phishing'])
+        total_votes = safe_votes + phishing_votes
+        
+        # Only use feedback score if enough votes
+        if total_votes < min_votes:
+            return None
+        
+        # Calculate risk percentage (phishing votes / total votes)
+        risk_score = (phishing_votes / total_votes) * 100
+        debug_print(f"Feedback score for {url}: {risk_score:.1f}% ({safe_votes} safe, {phishing_votes} phishing)")
+        return risk_score
+        
+    except Exception as e:
+        debug_print(f"Error getting URL feedback score: {e}")
+        return None
+
+
+def get_url_feedback_summary(url):
+    """Get detailed feedback summary for a URL."""
+    try:
+        df = get_feedback()
+        if df.empty:
+            return None
+        
+        url_feedback = df[df['url'] == url]
+        if url_feedback.empty:
+            return None
+        
+        safe_votes = len(url_feedback[url_feedback['verdict'] == 'safe'])
+        phishing_votes = len(url_feedback[url_feedback['verdict'] == 'phishing'])
+        total_votes = safe_votes + phishing_votes
+        
+        return {
+            'url': url,
+            'safe_votes': safe_votes,
+            'phishing_votes': phishing_votes,
+            'total_votes': total_votes,
+            'risk_score': (phishing_votes / total_votes) * 100 if total_votes > 0 else 0
+        }
+    except Exception as e:
+        debug_print(f"Error getting URL feedback summary: {e}")
+        return None
+
+
 def archive_feedback():
     """Archive feedback on Hugging Face."""
     try:
