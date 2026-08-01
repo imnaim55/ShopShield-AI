@@ -7,7 +7,7 @@ import os
 import sys
 import pandas as pd
 from datetime import datetime
-import requests
+from huggingface_hub import HfApi
 
 FEEDBACK_FILE = "data/user_feedback.csv"
 ARCHIVE_FILE = "data/feedback_archive.csv"
@@ -20,6 +20,32 @@ HF_MODEL_REPO = "imnaim55/shopshield-model"
 def debug_print(msg):
     print(msg)
     sys.stdout.flush()
+
+
+def upload_feedback_to_hub(df):
+    """Upload feedback CSV to Hugging Face Hub."""
+    try:
+        # Convert DataFrame to CSV string
+        csv_data = df.to_csv(index=False)
+        
+        # Use huggingface_hub library
+        api = HfApi()
+        api.upload_file(
+            path_or_fileobj=csv_data.encode('utf-8'),
+            path_in_repo="feedback.csv",
+            repo_id=HF_DATASET_REPO,
+            repo_type="dataset",
+            token=HF_TOKEN
+        )
+        
+        debug_print(f"✅ Feedback uploaded to {HF_DATASET_REPO}")
+        return True
+        
+    except Exception as e:
+        debug_print(f"❌ Upload error: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 
 def save_feedback(url, risk, verdict, comment=""):
@@ -59,32 +85,6 @@ def save_feedback(url, risk, verdict, comment=""):
         return True
     except Exception as e:
         debug_print(f"❌ Error saving feedback: {e}")
-        return False
-
-
-def upload_feedback_to_hub(df):
-    """Upload feedback CSV to Hugging Face Hub."""
-    try:
-        # Convert DataFrame to CSV
-        csv_data = df.to_csv(index=False)
-        
-        # Upload using Hugging Face API
-        url = f"https://huggingface.co/api/datasets/{HF_DATASET_REPO}/upload/main/feedback.csv"
-        headers = {
-            "Authorization": f"Bearer {HF_TOKEN}",
-            "Content-Type": "application/octet-stream"
-        }
-        
-        response = requests.put(url, headers=headers, data=csv_data.encode('utf-8'))
-        
-        if response.status_code == 200 or response.status_code == 201:
-            debug_print(f"✅ Feedback uploaded to {HF_DATASET_REPO}")
-            return True
-        else:
-            debug_print(f"❌ Upload failed: {response.status_code} - {response.text}")
-            return False
-    except Exception as e:
-        debug_print(f"❌ Upload error: {e}")
         return False
 
 
@@ -145,23 +145,16 @@ def upload_model_to_hub(model_path="models/url_phishing_model.pkl"):
     if not HF_TOKEN or not os.path.exists(model_path):
         return False
     try:
-        with open(model_path, 'rb') as f:
-            model_data = f.read()
-        
-        url = f"https://huggingface.co/api/models/{HF_MODEL_REPO}/upload/main/url_phishing_model.pkl"
-        headers = {
-            "Authorization": f"Bearer {HF_TOKEN}",
-            "Content-Type": "application/octet-stream"
-        }
-        
-        response = requests.put(url, headers=headers, data=model_data)
-        
-        if response.status_code == 200 or response.status_code == 201:
-            debug_print(f"✅ Model uploaded to {HF_MODEL_REPO}")
-            return True
-        else:
-            debug_print(f"❌ Model upload failed: {response.status_code}")
-            return False
+        api = HfApi()
+        api.upload_file(
+            path_or_fileobj=model_path,
+            path_in_repo="url_phishing_model.pkl",
+            repo_id=HF_MODEL_REPO,
+            repo_type="model",
+            token=HF_TOKEN
+        )
+        debug_print(f"✅ Model uploaded to {HF_MODEL_REPO}")
+        return True
     except Exception as e:
         debug_print(f"❌ Model upload error: {e}")
         return False
