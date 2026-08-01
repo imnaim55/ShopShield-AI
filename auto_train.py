@@ -11,16 +11,17 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from huggingface_hub import hf_hub_download
 from feedback_storage import get_feedback, archive_feedback, upload_model_to_hub
 from url_analyzer import extract_features_from_url
 import warnings
 warnings.filterwarnings('ignore')
 
 HF_TOKEN = os.getenv("HF_TOKEN")
+HF_DATASET_REPO = "imnaim55/shopshield-data"
 HF_MODEL_REPO = "imnaim55/shopshield-model"
-MODEL_PATH = "models/url_phishing_model.pkl"
-ORIGINAL_DATASET = "data/phishing_features.csv"
 
+MODEL_PATH = "models/url_phishing_model.pkl"
 FEATURE_COLUMNS = [
     "url_length", "num_dots", "has_https", "has_ip",
     "num_subdirs", "num_params", "suspicious_words",
@@ -33,12 +34,30 @@ def debug_print(msg):
     sys.stdout.flush()
 
 
+def download_dataset(filename="phishing_features.csv"):
+    """Download dataset from Hugging Face Hub."""
+    try:
+        debug_print(f"Downloading {filename} from Hugging Face...")
+        dataset_path = hf_hub_download(
+            repo_id=HF_DATASET_REPO,
+            filename=filename,
+            repo_type="dataset",
+            token=HF_TOKEN
+        )
+        debug_print(f"Downloaded to: {dataset_path}")
+        return pd.read_csv(dataset_path)
+    except Exception as e:
+        debug_print(f"Error downloading dataset: {e}")
+        return None
+
+
 def auto_retrain(min_samples=1, force=True):
     debug_print("=" * 60)
     debug_print("AUTO-RETRAINING STARTED")
     debug_print("=" * 60)
 
     try:
+        # 1. Get feedback
         debug_print("Getting feedback data...")
         feedback_df = get_feedback()
         debug_print(f"Raw feedback entries: {len(feedback_df)}")
@@ -47,20 +66,15 @@ def auto_retrain(min_samples=1, force=True):
             debug_print("No feedback data found")
             return False
 
-        debug_print(f"Columns: {feedback_df.columns.tolist()}")
-
-        verdict_col = None
-        for col in ['verdict', 'user_verdict']:
-            if col in feedback_df.columns:
-                verdict_col = col
-                break
-
-        if verdict_col is None:
+        # 2. Find verdict column
+        verdict_col = 'verdict' if 'verdict' in feedback_df.columns else 'user_verdict'
+        if verdict_col not in feedback_df.columns:
             debug_print("No verdict column found")
             return False
 
         debug_print(f"Using verdict column: '{verdict_col}'")
 
+        # 3. Filter clear feedback
         feedback_df = feedback_df[feedback_df[verdict_col].isin(['phishing', 'safe'])]
         debug_print(f"Clear feedback entries: {len(feedback_df)}")
 
@@ -71,24 +85,21 @@ def auto_retrain(min_samples=1, force=True):
         all_features = []
         all_labels = []
 
-        if os.path.exists(ORIGINAL_DATASET):
-            try:
-                original_df = pd.read_csv(ORIGINAL_DATASET)
-                debug_print(f"Loaded original dataset: {len(original_df)} rows")
-
-                if all(col in original_df.columns for col in FEATURE_COLUMNS):
-                    X_orig = original_df[FEATURE_COLUMNS]
-                    y_orig = original_df['label'].astype(int)
-                    all_features.extend(X_orig.values.tolist())
-                    all_labels.extend(y_orig.values.tolist())
-                    debug_print(f"Added {len(X_orig)} original samples")
-                else:
-                    debug_print("Missing columns in original dataset")
-            except Exception as e:
-                debug_print(f"Error loading dataset: {e}")
+        # 4. Download and load dataset from Hugging Face
+        dataset_df = download_dataset("phishing_features.csv")
+        if dataset_df is not None:
+            if all(col in dataset_df.columns for col in FEATURE_COLUMNS):
+                X_orig = dataset_df[FEATURE_COLUMNS]
+                y_orig = dataset_df['label'].astype(int)
+                all_features.extend(X_orig.values.tolist())
+                all_labels.extend(y_orig.values.tolist())
+                debug_print(f"Added {len(X_orig)} samples from dataset")
+            else:
+                debug_print("Dataset missing required columns")
         else:
-            debug_print(f"Original dataset not found: {ORIGINAL_DATASET}")
+            debug_print("Could not load dataset")
 
+        # 5. Process feedback
         processed = 0
         for _, row in feedback_df.iterrows():
             try:
@@ -104,57 +115,46 @@ def auto_retrain(min_samples=1, force=True):
         debug_print(f"Processed {processed} feedback URLs")
 
         if len(all_features) < 5:
-            debug_print(f"Not enough samples: {len(all_features)} (need at least 5)")
+            debug_print(f"Not enough samples: {len(all_features)}")
             return False
 
         X = np.array(all_features)
         y = np.array(all_labels)
         debug_print(f"Total samples: {len(X)}")
 
+        # 6. Train model
         debug_print("Training Random Forest model...")
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=y
+        )
 
-        if len(X) < 10:
-            model = RandomForestClassifier(
-                n_estimators=50,
-                max_depth=8,
-                min_samples_split=3,
-                min_samples_leaf=2,
-                random_state=42,
-                n_jobs=-1,
-                class_weight='balanced'
-            )
-            model.fit(X, y)
-            debug_print("Small dataset: used all samples for training")
-        else:
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=0.2, random_state=42, stratify=y
-            )
-            model = RandomForestClassifier(
-                n_estimators=100,
-                max_depth=10,
-                min_samples_split=5,
-                min_samples_leaf=2,
-                random_state=42,
-                n_jobs=-1,
-                class_weight='balanced'
-            )
-            model.fit(X_train, y_train)
+        model = RandomForestClassifier(
+            n_estimators=100,
+            max_depth=12,
+            min_samples_split=5,
+            min_samples_leaf=2,
+            random_state=42,
+            n_jobs=-1,
+            class_weight='balanced'
+        )
+        model.fit(X_train, y_train)
 
-            y_pred = model.predict(X_test)
-            debug_print(f"Accuracy: {accuracy_score(y_test, y_pred):.4f}")
+        y_pred = model.predict(X_test)
+        debug_print(f"Accuracy: {accuracy_score(y_test, y_pred):.4f}")
 
+        # 7. Save model
         os.makedirs("models", exist_ok=True)
         with open(MODEL_PATH, 'wb') as f:
             pickle.dump(model, f)
         debug_print(f"Model saved to {MODEL_PATH}")
 
+        # 8. Upload model to Hugging Face
         if HF_TOKEN:
             debug_print("Uploading model to Hugging Face...")
             success = upload_model_to_hub(MODEL_PATH)
             debug_print(f"Upload result: {'SUCCESS' if success else 'FAILED'}")
-        else:
-            debug_print("HF_TOKEN not set. Model not uploaded.")
 
+        # 9. Archive feedback
         archive_feedback()
         debug_print("Feedback archived")
 
