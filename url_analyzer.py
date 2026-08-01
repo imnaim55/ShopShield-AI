@@ -13,8 +13,6 @@ from collections import Counter
 
 MODEL_PATH = os.path.join("models", "url_phishing_model.pkl")
 
-# ===== STRICTER HEURISTIC RULES =====
-
 SAFE_DOMAINS = [
     'amazon.com', 'google.com', 'github.com', 'stackoverflow.com',
     'microsoft.com', 'apple.com', 'netflix.com', 'spotify.com',
@@ -24,8 +22,6 @@ SAFE_DOMAINS = [
     'twitter.com', 'linkedin.com', 'facebook.com', 'instagram.com',
     'python.org', 'wikipedia.org', 'dropbox.com'
 ]
-
-# ===== EXPANDED SUSPICIOUS PATTERNS =====
 
 SUSPICIOUS_KEYWORDS = [
     "login", "verify", "account", "secure", "payment", "free",
@@ -40,23 +36,21 @@ SUSPICIOUS_KEYWORDS = [
     "malayalam", "kannada", "punjabi", "bengali"
 ]
 
-# ===== MORE AGGRESSIVE SCORING =====
-
 SUSPICIOUS_TLDS = [
     '.xyz', '.top', '.club', '.online', '.site', '.win', '.bid',
-    '.tk', '.ml', '.ga', '.cf', '.gq', '.click', '.download', 
-    '.biz', '.info', '.stream', '.date', '.men', '.loan', 
+    '.tk', '.ml', '.ga', '.cf', '.gq', '.click', '.download',
+    '.biz', '.info', '.stream', '.date', '.men', '.loan',
     '.racing', '.review', '.trade', '.lol', '.work', '.fun'
 ]
 
 BRAND_PATTERNS = [
-    "paypal", "amazon", "microsoft", "apple", "google", 
+    "paypal", "amazon", "microsoft", "apple", "google",
     "facebook", "netflix", "spotify", "roblox", "instagram",
     "whatsapp", "telegram", "discord", "twitch", "twitter"
 ]
 
 SUSPICIOUS_PATHS = [
-    "/verify", "/login", "/account", "/secure", "/confirm", 
+    "/verify", "/login", "/account", "/secure", "/confirm",
     "/update", "/reset", "/auth", "/signin", "/sign-in",
     "/log-in", "/user", "/profile", "/wallet", "/payment",
     "/bank", "/funds", "/withdraw", "/deposit", "/transfer"
@@ -74,21 +68,20 @@ IP_PATTERN = r"(\d{1,3}\.){3}\d{1,3}"
 
 
 def load_model():
-    """Load model from local path; if missing, return None and show warning."""
     if os.path.exists(MODEL_PATH):
         try:
             with open(MODEL_PATH, "rb") as f:
                 model = pickle.load(f)
-            print(f"✅ Model loaded from {MODEL_PATH}")
-            print(f"   Features: {model.n_features_in_}")
-            print(f"   Trees: {model.n_estimators}")
+            print(f"Model loaded from {MODEL_PATH}")
+            print(f"Features: {model.n_features_in_}")
+            print(f"Trees: {model.n_estimators}")
             return model
         except Exception as e:
-            print(f"⚠️ Error loading model: {e}")
+            print(f"Error loading model: {e}")
     else:
-        print("⚠️ Model file not found. Please run train_initial_model.py first.")
-        print(f"   Expected path: {MODEL_PATH}")
+        print(f"Model file not found: {MODEL_PATH}")
     return None
+
 
 model = load_model()
 
@@ -106,28 +99,28 @@ def calculate_entropy(text):
 def extract_features_from_url(url):
     url = url.strip().lower()
     parsed = urllib.parse.urlparse(url)
-    
+
     url_length = len(url)
     num_dots = url.count(".")
     has_https = 1 if parsed.scheme == "https" else 0
     has_ip = 1 if re.search(IP_PATTERN, parsed.netloc) else 0
-    
+
     has_unusual_port = 0
     port_match = re.search(r":(\d+)", parsed.netloc)
     if port_match:
         port = int(port_match.group(1))
         if port not in [80, 443]:
             has_unusual_port = 1
-    
+
     num_subdirs = parsed.path.count("/")
     num_params = len(parsed.query.split("&")) if parsed.query else 0
-    
+
     path_and_query = parsed.path + parsed.query
     suspicious_words = sum(1 for word in SUSPICIOUS_KEYWORDS if word in path_and_query)
-    
+
     special_char_count = sum(url.count(c) for c in ["-", "@", "_", "?", "=", "%", "&"])
     digits_count = sum(ch.isdigit() for ch in url)
-    
+
     feature_df = pd.DataFrame({
         "url_length": [url_length],
         "num_dots": [num_dots],
@@ -139,7 +132,7 @@ def extract_features_from_url(url):
         "special_char_count": [special_char_count],
         "digits_count": [digits_count]
     })
-    
+
     extra_features = {
         "has_unusual_port": has_unusual_port,
         "has_ip": has_ip,
@@ -154,27 +147,23 @@ def extract_features_from_url(url):
         "path": parsed.path,
         "query": parsed.query
     }
-    
+
     return feature_df, extra_features
 
 
 def heuristic_analysis(url):
     url_lower = url.lower()
     risk = 0.0
-    
-    # IP Address - High risk
+
     if re.search(IP_PATTERN, url_lower):
         risk += 50
-    
-    # Unusual ports
+
     if any(port in url_lower for port in UNUSUAL_PORTS):
         risk += 35
-    
-    # Suspicious TLDs
+
     if any(tld in url_lower for tld in SUSPICIOUS_TLDS):
         risk += 25
-    
-    # Suspicious keywords
+
     keyword_count = sum(1 for word in SUSPICIOUS_KEYWORDS if word in url_lower)
     if keyword_count >= 3:
         risk += 25
@@ -182,55 +171,45 @@ def heuristic_analysis(url):
         risk += 15
     elif keyword_count >= 1:
         risk += 8
-    
-    # Brand impersonation
+
     for brand in BRAND_PATTERNS:
         if brand in url_lower:
             if any(sus in url_lower for sus in ["verify", "login", "account", "secure"]):
                 risk += 30
                 break
-    
-    # No HTTPS
+
     if not url_lower.startswith("https://"):
         risk += 10
-    
-    # Suspicious paths
+
     if any(path in url_lower for path in SUSPICIOUS_PATHS):
         risk += 15
-    
-    # @ symbol
+
     if "@" in url_lower:
         risk += 20
-    
-    # Scam patterns
+
     if any(pattern in url_lower for pattern in SCAM_PATTERNS):
         risk += 25
-    
+
     return min(100.0, risk)
 
 
 def predict_url_risk(url):
-    """Predict phishing risk using heuristic + ML."""
     try:
         url_lower = url.lower()
         domain = urllib.parse.urlparse(url).netloc.lower()
-        
-        # 1. Whitelist check - SAFE
+
         for safe_domain in SAFE_DOMAINS:
             if domain == safe_domain or domain.endswith('.' + safe_domain):
-                print(f"✅ Safe domain: {domain}")
+                print(f"Safe domain: {domain}")
                 return 5.0
-        
-        # 2. Run heuristic analysis
+
         heuristic_risk = heuristic_analysis(url)
-        print(f"🔍 Heuristic risk: {heuristic_risk}%")
-        
-        # 3. If heuristic says high risk, return it early
+        print(f"Heuristic risk: {heuristic_risk}%")
+
         if heuristic_risk >= 70:
-            print(f"🚨 High risk from heuristic: {heuristic_risk}%")
+            print(f"High risk from heuristic: {heuristic_risk}%")
             return heuristic_risk
-        
-        # 4. ML model prediction (if available)
+
         if model is not None:
             try:
                 features, _ = extract_features_from_url(url)
@@ -242,14 +221,13 @@ def predict_url_risk(url):
                     else:
                         phishing_prob = probabilities[1] if len(probabilities) > 1 else probabilities[0]
                     ml_risk = float(round(phishing_prob * 100, 2))
-                    print(f"🤖 ML risk: {ml_risk}%")
-                    
-                    # Combine: Take the higher of heuristic and ML (conservative approach)
+                    print(f"ML risk: {ml_risk}%")
+
                     final_risk = max(heuristic_risk, ml_risk)
                     return min(100.0, final_risk)
             except Exception as e:
                 print(f"ML error: {e}")
-        
+
         return heuristic_risk
     except Exception as e:
         print(f"Prediction error: {e}")
@@ -280,5 +258,5 @@ if __name__ == "__main__":
     ]
     for url in test_urls:
         risk = predict_url_risk(url)
-        status = "🔴 PHISHING" if risk >= 70 else "🟡 SUSPICIOUS" if risk >= 30 else "🟢 SAFE"
+        status = "PHISHING" if risk >= 70 else "SUSPICIOUS" if risk >= 30 else "SAFE"
         print(f"{status}: {url} -> {risk:.1f}%")
