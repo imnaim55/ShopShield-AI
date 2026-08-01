@@ -1,5 +1,5 @@
 """
-ShopShield AI - Phishing Detection System
+ShopShield AI - Phishing Detection System (Virtual)
 Developed by Naim Shaikh
 """
 

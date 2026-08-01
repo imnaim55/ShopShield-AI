@@ -1,5 +1,5 @@
 """
-URL Phishing Detection Module - ShopShield AI
+URL Phishing Detection Module - ShopShield AI (Virtual)
 Developed by Naim Shaikh
 """
 
@@ -10,8 +10,11 @@ import pandas as pd
 import re
 import math
 from collections import Counter
+from huggingface_hub import hf_hub_download
 
 MODEL_PATH = os.path.join("models", "url_phishing_model.pkl")
+HF_MODEL_REPO = "imnaim55/shopshield-model"
+HF_MODEL_FILE = "url_phishing_model.pkl"
 
 SAFE_DOMAINS = [
     'amazon.com', 'google.com', 'github.com', 'stackoverflow.com',
@@ -68,19 +71,36 @@ IP_PATTERN = r"(\d{1,3}\.){3}\d{1,3}"
 
 
 def load_model():
-    if os.path.exists(MODEL_PATH):
-        try:
-            with open(MODEL_PATH, "rb") as f:
-                model = pickle.load(f)
-            print(f"Model loaded from {MODEL_PATH}")
-            print(f"Features: {model.n_features_in_}")
-            print(f"Trees: {model.n_estimators}")
-            return model
-        except Exception as e:
-            print(f"Error loading model: {e}")
-    else:
-        print(f"Model file not found: {MODEL_PATH}")
-    return None
+    """Load model from Hugging Face Hub (virtual) with local fallback."""
+    try:
+        # Try to download the latest model from Hugging Face
+        print("Loading model from Hugging Face Hub...")
+        model_path = hf_hub_download(
+            repo_id=HF_MODEL_REPO,
+            filename=HF_MODEL_FILE,
+            repo_type="model"
+        )
+        with open(model_path, "rb") as f:
+            model = pickle.load(f)
+        print(f"Model loaded from Hugging Face: {HF_MODEL_REPO}")
+        print(f"Features: {model.n_features_in_}")
+        print(f"Trees: {model.n_estimators}")
+        return model
+    except Exception as e:
+        print(f"Error loading model from Hugging Face: {e}")
+        
+        # Fallback: Try local model
+        if os.path.exists(MODEL_PATH):
+            try:
+                with open(MODEL_PATH, "rb") as f:
+                    model = pickle.load(f)
+                print(f"Model loaded locally: {MODEL_PATH}")
+                return model
+            except Exception as e2:
+                print(f"Error loading local model: {e2}")
+        
+        print("No model available. Using heuristic analysis only.")
+        return None
 
 
 model = load_model()
@@ -256,6 +276,9 @@ if __name__ == "__main__":
         "http://free-gift-offer.biz",
         "https://www.nykaa.com/skin/c/8377",
     ]
+    print("=" * 70)
+    print("Testing URL Analyzer (Virtual Model)")
+    print("=" * 70)
     for url in test_urls:
         risk = predict_url_risk(url)
         status = "PHISHING" if risk >= 70 else "SUSPICIOUS" if risk >= 30 else "SAFE"

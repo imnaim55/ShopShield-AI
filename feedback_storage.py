@@ -1,5 +1,5 @@
 """
-Feedback Storage Module - ShopShield AI
+Feedback Storage Module - ShopShield AI (Pure Virtual)
 Developed by Naim Shaikh
 """
 
@@ -8,12 +8,12 @@ import sys
 import pandas as pd
 from datetime import datetime
 from huggingface_hub import HfApi
-
-FEEDBACK_FILE = "data/user_feedback.csv"
-ARCHIVE_FILE = "data/feedback_archive.csv"
+import requests
+from io import StringIO
 
 HF_TOKEN = os.getenv("HF_TOKEN")
-HF_DATASET_REPO = "imnaim55/shopshield-feedback"
+HF_FEEDBACK_REPO = "imnaim55/shopshield-feedback"
+HF_DATA_REPO = "imnaim55/shopshield-data"
 HF_MODEL_REPO = "imnaim55/shopshield-model"
 
 
@@ -22,30 +22,41 @@ def debug_print(msg):
     sys.stdout.flush()
 
 
-def upload_feedback_to_hub(df):
+def read_csv_from_hub(filename):
+    """Read CSV directly from Hugging Face Hub."""
+    try:
+        url = f"https://huggingface.co/datasets/{HF_FEEDBACK_REPO}/resolve/main/{filename}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            return pd.read_csv(StringIO(response.text))
+        return pd.DataFrame()
+    except Exception as e:
+        debug_print(f"Error reading {filename}: {e}")
+        return pd.DataFrame()
+
+
+def write_csv_to_hub(df, filename):
+    """Write CSV directly to Hugging Face Hub."""
     try:
         csv_data = df.to_csv(index=False)
         api = HfApi()
         api.upload_file(
             path_or_fileobj=csv_data.encode('utf-8'),
-            path_in_repo="feedback.csv",
-            repo_id=HF_DATASET_REPO,
+            path_in_repo=filename,
+            repo_id=HF_FEEDBACK_REPO,
             repo_type="dataset",
             token=HF_TOKEN
         )
-        debug_print(f"Feedback uploaded to {HF_DATASET_REPO}")
+        debug_print(f"Uploaded {filename} to Hugging Face")
         return True
     except Exception as e:
-        debug_print(f"Upload error: {e}")
-        import traceback
-        traceback.print_exc()
+        debug_print(f"Error uploading {filename}: {e}")
         return False
 
 
 def save_feedback(url, risk, verdict, comment=""):
+    """Save feedback directly to Hugging Face."""
     try:
-        os.makedirs("data", exist_ok=True)
-
         feedback_entry = {
             "url": url,
             "risk_score": risk,
@@ -54,81 +65,84 @@ def save_feedback(url, risk, verdict, comment=""):
             "timestamp": datetime.now().isoformat()
         }
 
-        if os.path.exists(FEEDBACK_FILE) and os.path.getsize(FEEDBACK_FILE) > 0:
-            try:
-                df = pd.read_csv(FEEDBACK_FILE)
-            except:
-                df = pd.DataFrame()
+        df = read_csv_from_hub("feedback.csv")
+        new_df = pd.DataFrame([feedback_entry])
+        
+        if df.empty:
+            df = new_df
         else:
-            df = pd.DataFrame()
-
-        df = pd.concat([df, pd.DataFrame([feedback_entry])], ignore_index=True)
-        df.to_csv(FEEDBACK_FILE, index=False)
-        debug_print(f"Feedback saved locally: {url}")
-
-        if HF_TOKEN:
-            debug_print("Uploading feedback to Hugging Face...")
-            success = upload_feedback_to_hub(df)
-            debug_print(f"Upload result: {'SUCCESS' if success else 'FAILED'}")
-        else:
-            debug_print("HF_TOKEN not set. Feedback not uploaded.")
-
-        return True
+            df = pd.concat([df, new_df], ignore_index=True)
+        
+        success = write_csv_to_hub(df, "feedback.csv")
+        debug_print(f"Feedback saved: {url} -> {verdict}")
+        return success
+        
     except Exception as e:
         debug_print(f"Error saving feedback: {e}")
         return False
 
 
 def get_feedback():
+    """Get all feedback from Hugging Face."""
     try:
-        if os.path.exists(FEEDBACK_FILE) and os.path.getsize(FEEDBACK_FILE) > 0:
-            return pd.read_csv(FEEDBACK_FILE)
-        return pd.DataFrame(columns=['url', 'risk_score', 'verdict', 'comment', 'timestamp'])
+        return read_csv_from_hub("feedback.csv")
     except:
         return pd.DataFrame(columns=['url', 'risk_score', 'verdict', 'comment', 'timestamp'])
 
 
 def get_feedback_count():
+    """Get number of feedback entries."""
     try:
-        return len(get_feedback())
+        df = get_feedback()
+        return len(df)
     except:
         return 0
 
 
-def get_archive_feedback():
-    try:
-        if os.path.exists(ARCHIVE_FILE) and os.path.getsize(ARCHIVE_FILE) > 0:
-            return pd.read_csv(ARCHIVE_FILE)
-        return pd.DataFrame(columns=['url', 'risk_score', 'verdict', 'comment', 'timestamp'])
-    except:
-        return pd.DataFrame(columns=['url', 'risk_score', 'verdict', 'comment', 'timestamp'])
-
-
 def archive_feedback():
+    """Archive feedback on Hugging Face."""
     try:
-        if not os.path.exists(FEEDBACK_FILE) or os.path.getsize(FEEDBACK_FILE) == 0:
-            return False
-
-        df = pd.read_csv(FEEDBACK_FILE)
+        df = read_csv_from_hub("feedback.csv")
         if df.empty:
             return False
-
-        if os.path.exists(ARCHIVE_FILE) and os.path.getsize(ARCHIVE_FILE) > 0:
-            try:
-                archive_df = pd.read_csv(ARCHIVE_FILE)
-                df = pd.concat([archive_df, df], ignore_index=True)
-            except:
-                pass
-
-        df.to_csv(ARCHIVE_FILE, index=False)
-        pd.DataFrame(columns=df.columns).to_csv(FEEDBACK_FILE, index=False)
+        
+        archive_df = read_csv_from_hub("feedback_archive.csv")
+        if archive_df.empty:
+            archive_df = df
+        else:
+            archive_df = pd.concat([archive_df, df], ignore_index=True)
+        
+        write_csv_to_hub(archive_df, "feedback_archive.csv")
+        empty_df = pd.DataFrame(columns=['url', 'risk_score', 'verdict', 'comment', 'timestamp'])
+        write_csv_to_hub(empty_df, "feedback.csv")
+        
+        debug_print("Feedback archived")
         return True
-    except:
+    except Exception as e:
+        debug_print(f"Archive error: {e}")
         return False
 
 
+def download_dataset_from_hub():
+    """Download phishing_features.csv from Hugging Face."""
+    try:
+        from huggingface_hub import hf_hub_download
+        dataset_path = hf_hub_download(
+            repo_id=HF_DATA_REPO,
+            filename="phishing_features.csv",
+            repo_type="dataset",
+            token=HF_TOKEN
+        )
+        debug_print(f"Dataset downloaded from Hugging Face")
+        return pd.read_csv(dataset_path)
+    except Exception as e:
+        debug_print(f"Dataset download error: {e}")
+        return None
+
+
 def upload_model_to_hub(model_path="models/url_phishing_model.pkl"):
-    if not HF_TOKEN or not os.path.exists(model_path):
+    """Upload trained model to Hugging Face."""
+    if not os.path.exists(model_path):
         return False
     try:
         api = HfApi()
@@ -144,3 +158,23 @@ def upload_model_to_hub(model_path="models/url_phishing_model.pkl"):
     except Exception as e:
         debug_print(f"Model upload error: {e}")
         return False
+
+
+def load_model_from_hub():
+    """Load model directly from Hugging Face."""
+    try:
+        from huggingface_hub import hf_hub_download
+        import pickle
+        model_path = hf_hub_download(
+            repo_id=HF_MODEL_REPO,
+            filename="url_phishing_model.pkl",
+            repo_type="model",
+            token=HF_TOKEN
+        )
+        with open(model_path, 'rb') as f:
+            model = pickle.load(f)
+        debug_print(f"Model loaded from Hugging Face")
+        return model
+    except Exception as e:
+        debug_print(f"Model download error: {e}")
+        return None

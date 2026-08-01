@@ -1,5 +1,5 @@
 """
-Auto-Retraining Module - ShopShield AI
+Auto-Retraining Module - ShopShield AI (Virtual)
 Developed by Naim Shaikh
 """
 
@@ -10,16 +10,14 @@ import pickle
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from huggingface_hub import hf_hub_download
-from feedback_storage import get_feedback, archive_feedback, upload_model_to_hub
+from sklearn.metrics import accuracy_score
+from feedback_storage import (
+    get_feedback, archive_feedback, download_dataset_from_hub, 
+    upload_model_to_hub
+)
 from url_analyzer import extract_features_from_url
 import warnings
 warnings.filterwarnings('ignore')
-
-HF_TOKEN = os.getenv("HF_TOKEN")
-HF_DATASET_REPO = "imnaim55/shopshield-data"
-HF_MODEL_REPO = "imnaim55/shopshield-model"
 
 MODEL_PATH = "models/url_phishing_model.pkl"
 FEATURE_COLUMNS = [
@@ -34,31 +32,14 @@ def debug_print(msg):
     sys.stdout.flush()
 
 
-def download_dataset(filename="phishing_features.csv"):
-    """Download dataset from Hugging Face Hub."""
-    try:
-        debug_print(f"Downloading {filename} from Hugging Face...")
-        dataset_path = hf_hub_download(
-            repo_id=HF_DATASET_REPO,
-            filename=filename,
-            repo_type="dataset",
-            token=HF_TOKEN
-        )
-        debug_print(f"Downloaded to: {dataset_path}")
-        return pd.read_csv(dataset_path)
-    except Exception as e:
-        debug_print(f"Error downloading dataset: {e}")
-        return None
-
-
 def auto_retrain(min_samples=1, force=True):
     debug_print("=" * 60)
-    debug_print("AUTO-RETRAINING STARTED")
+    debug_print("AUTO-RETRAINING STARTED (Virtual Mode)")
     debug_print("=" * 60)
 
     try:
-        # 1. Get feedback
-        debug_print("Getting feedback data...")
+        # Step 1: Get feedback from Hugging Face
+        debug_print("Getting feedback from Hugging Face...")
         feedback_df = get_feedback()
         debug_print(f"Raw feedback entries: {len(feedback_df)}")
 
@@ -66,7 +47,6 @@ def auto_retrain(min_samples=1, force=True):
             debug_print("No feedback data found")
             return False
 
-        # 2. Find verdict column
         verdict_col = 'verdict' if 'verdict' in feedback_df.columns else 'user_verdict'
         if verdict_col not in feedback_df.columns:
             debug_print("No verdict column found")
@@ -74,7 +54,6 @@ def auto_retrain(min_samples=1, force=True):
 
         debug_print(f"Using verdict column: '{verdict_col}'")
 
-        # 3. Filter clear feedback
         feedback_df = feedback_df[feedback_df[verdict_col].isin(['phishing', 'safe'])]
         debug_print(f"Clear feedback entries: {len(feedback_df)}")
 
@@ -85,8 +64,8 @@ def auto_retrain(min_samples=1, force=True):
         all_features = []
         all_labels = []
 
-        # 4. Download and load dataset from Hugging Face
-        dataset_df = download_dataset("phishing_features.csv")
+        # Step 2: Download dataset from Hugging Face
+        dataset_df = download_dataset_from_hub()
         if dataset_df is not None:
             if all(col in dataset_df.columns for col in FEATURE_COLUMNS):
                 X_orig = dataset_df[FEATURE_COLUMNS]
@@ -97,9 +76,9 @@ def auto_retrain(min_samples=1, force=True):
             else:
                 debug_print("Dataset missing required columns")
         else:
-            debug_print("Could not load dataset")
+            debug_print("Could not download dataset")
 
-        # 5. Process feedback
+        # Step 3: Process feedback
         processed = 0
         for _, row in feedback_df.iterrows():
             try:
@@ -122,7 +101,7 @@ def auto_retrain(min_samples=1, force=True):
         y = np.array(all_labels)
         debug_print(f"Total samples: {len(X)}")
 
-        # 6. Train model
+        # Step 4: Train model
         debug_print("Training Random Forest model...")
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42, stratify=y
@@ -142,21 +121,19 @@ def auto_retrain(min_samples=1, force=True):
         y_pred = model.predict(X_test)
         debug_print(f"Accuracy: {accuracy_score(y_test, y_pred):.4f}")
 
-        # 7. Save model
+        # Step 5: Save model locally (temporary)
         os.makedirs("models", exist_ok=True)
         with open(MODEL_PATH, 'wb') as f:
             pickle.dump(model, f)
-        debug_print(f"Model saved to {MODEL_PATH}")
+        debug_print(f"Model saved locally")
 
-        # 8. Upload model to Hugging Face
-        if HF_TOKEN:
-            debug_print("Uploading model to Hugging Face...")
-            success = upload_model_to_hub(MODEL_PATH)
-            debug_print(f"Upload result: {'SUCCESS' if success else 'FAILED'}")
+        # Step 6: Upload model to Hugging Face
+        debug_print("Uploading model to Hugging Face...")
+        upload_model_to_hub(MODEL_PATH)
 
-        # 9. Archive feedback
+        # Step 7: Archive feedback on Hugging Face
         archive_feedback()
-        debug_print("Feedback archived")
+        debug_print("Feedback archived on Hugging Face")
 
         debug_print("=" * 60)
         debug_print("RETRAINING COMPLETED SUCCESSFULLY")
