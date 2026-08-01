@@ -36,7 +36,7 @@ def read_csv_from_hub(filename):
         return pd.DataFrame()
 
 
-@st.cache_data(ttl=10)  # Auto-refresh every 10 seconds
+@st.cache_data(ttl=10)
 def get_feedback_cached():
     """Get feedback with automatic cache refresh."""
     return read_csv_from_hub("feedback.csv")
@@ -62,9 +62,8 @@ def write_csv_to_hub(df, filename):
             repo_type="dataset",
             token=HF_TOKEN
         )
-        # Clear cache after writing new data
         st.cache_data.clear()
-        debug_print(f"Uploaded {filename} to Hugging Face (cache cleared)")
+        debug_print(f"Uploaded {filename} to Hugging Face")
         return True
     except Exception as e:
         debug_print(f"Error uploading {filename}: {e}")
@@ -82,7 +81,7 @@ def save_feedback(url, risk, verdict, comment=""):
             "timestamp": datetime.now().isoformat()
         }
 
-        df = get_feedback()  # This uses cached version
+        df = get_feedback()
         new_df = pd.DataFrame([feedback_entry])
         
         if df.empty:
@@ -90,7 +89,6 @@ def save_feedback(url, risk, verdict, comment=""):
         else:
             df = pd.concat([df, new_df], ignore_index=True)
         
-        # Write to Hugging Face (this also clears cache)
         success = write_csv_to_hub(df, "feedback.csv")
         debug_print(f"Feedback saved: {url} -> {verdict}")
         return success
@@ -130,7 +128,6 @@ def get_url_feedback_score(url, min_votes=3):
             return None
         
         risk_score = (phishing_votes / total_votes) * 100
-        debug_print(f"Feedback score for {url}: {risk_score:.1f}% ({safe_votes} safe, {phishing_votes} phishing)")
         return risk_score
         
     except Exception as e:

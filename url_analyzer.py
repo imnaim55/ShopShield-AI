@@ -11,7 +11,6 @@ import re
 import math
 from collections import Counter
 from huggingface_hub import hf_hub_download
-from feedback_storage import get_url_feedback_score, get_url_feedback_summary
 
 MODEL_PATH = os.path.join("models", "url_phishing_model.pkl")
 HF_MODEL_REPO = "imnaim55/shopshield-model"
@@ -89,7 +88,6 @@ def load_model():
     except Exception as e:
         print(f"Error loading model from Hugging Face: {e}")
         
-        # Fallback: Try local model
         if os.path.exists(MODEL_PATH):
             try:
                 with open(MODEL_PATH, "rb") as f:
@@ -228,13 +226,20 @@ def predict_url_risk(url):
                 return 5.0
 
         # ===== STEP 2: Check feedback-based score (VIRTUAL) =====
-        feedback_score = get_url_feedback_score(url, min_votes=3)
-        if feedback_score is not None:
-            print(f"Using feedback score: {feedback_score:.1f}%")
-            summary = get_url_feedback_summary(url)
-            if summary:
-                print(f"Votes: {summary['safe_votes']} safe, {summary['phishing_votes']} phishing")
-            return feedback_score
+        # Import inside function to avoid circular import
+        try:
+            from feedback_storage import get_url_feedback_score, get_url_feedback_summary
+            feedback_score = get_url_feedback_score(url, min_votes=3)
+            if feedback_score is not None:
+                print(f"Using feedback score: {feedback_score:.1f}%")
+                summary = get_url_feedback_summary(url)
+                if summary:
+                    print(f"Votes: {summary['safe_votes']} safe, {summary['phishing_votes']} phishing")
+                return feedback_score
+        except ImportError:
+            print("Feedback module not available")
+        except Exception as e:
+            print(f"Feedback score error: {e}")
 
         # ===== STEP 3: Heuristic analysis =====
         heuristic_risk = heuristic_analysis(url)
