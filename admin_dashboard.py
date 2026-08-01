@@ -59,7 +59,13 @@ with st.sidebar:
     if st.button("🔄 Force Retrain", use_container_width=True):
         with st.spinner("Retraining model..."):
             try:
-                if auto_retrain(min_samples=1, force=True):
+                # Import and run
+                from auto_train import auto_retrain
+                debug_msg = st.empty()
+                debug_msg.info("Starting retraining...")
+                # Run retraining
+                success = auto_retrain(min_samples=1, force=True)
+                if success:
                     st.session_state.retrain_success_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     st.success(f"✅ Model retrained successfully at {st.session_state.retrain_success_time}")
                     time.sleep(1)
@@ -67,7 +73,7 @@ with st.sidebar:
                 else:
                     st.error("❌ Retraining failed. Check logs.")
             except Exception as e:
-                st.error(f"Error: {str(e)}")
+                    st.error(f"❌ Error: {str(e)}")
 
 # Metrics
 feedback_count = get_feedback_count()
