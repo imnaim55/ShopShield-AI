@@ -10,6 +10,7 @@ from datetime import datetime
 from huggingface_hub import HfApi
 import requests
 from io import StringIO
+import streamlit as st
 
 HF_TOKEN = os.getenv("HF_TOKEN")
 HF_FEEDBACK_REPO = "imnaim55/shopshield-feedback"
@@ -35,6 +36,20 @@ def read_csv_from_hub(filename):
         return pd.DataFrame()
 
 
+@st.cache_data(ttl=10)  # Auto-refresh every 10 seconds
+def get_feedback_cached():
+    """Get feedback with automatic cache refresh."""
+    return read_csv_from_hub("feedback.csv")
+
+
+def get_feedback():
+    """Get all feedback from Hugging Face (auto-refresh)."""
+    try:
+        return get_feedback_cached()
+    except:
+        return pd.DataFrame(columns=['url', 'risk_score', 'verdict', 'comment', 'timestamp'])
+
+
 def write_csv_to_hub(df, filename):
     """Write CSV directly to Hugging Face Hub."""
     try:
@@ -47,7 +62,9 @@ def write_csv_to_hub(df, filename):
             repo_type="dataset",
             token=HF_TOKEN
         )
-        debug_print(f"Uploaded {filename} to Hugging Face")
+        # Clear cache after writing new data
+        st.cache_data.clear()
+        debug_print(f"Uploaded {filename} to Hugging Face (cache cleared)")
         return True
     except Exception as e:
         debug_print(f"Error uploading {filename}: {e}")
@@ -65,7 +82,7 @@ def save_feedback(url, risk, verdict, comment=""):
             "timestamp": datetime.now().isoformat()
         }
 
-        df = read_csv_from_hub("feedback.csv")
+        df = get_feedback()  # This uses cached version
         new_df = pd.DataFrame([feedback_entry])
         
         if df.empty:
@@ -73,6 +90,7 @@ def save_feedback(url, risk, verdict, comment=""):
         else:
             df = pd.concat([df, new_df], ignore_index=True)
         
+        # Write to Hugging Face (this also clears cache)
         success = write_csv_to_hub(df, "feedback.csv")
         debug_print(f"Feedback saved: {url} -> {verdict}")
         return success
@@ -80,14 +98,6 @@ def save_feedback(url, risk, verdict, comment=""):
     except Exception as e:
         debug_print(f"Error saving feedback: {e}")
         return False
-
-
-def get_feedback():
-    """Get all feedback from Hugging Face."""
-    try:
-        return read_csv_from_hub("feedback.csv")
-    except:
-        return pd.DataFrame(columns=['url', 'risk_score', 'verdict', 'comment', 'timestamp'])
 
 
 def get_feedback_count():
@@ -102,34 +112,23 @@ def get_feedback_count():
 def get_url_feedback_score(url, min_votes=3):
     """
     Get feedback-based risk score for a specific URL.
-    
-    Args:
-        url: The URL to check
-        min_votes: Minimum votes required before using feedback score
-    
-    Returns:
-        float: Risk score (0-100) or None if not enough votes
     """
     try:
         df = get_feedback()
         if df.empty:
             return None
         
-        # Filter for the specific URL
         url_feedback = df[df['url'] == url]
         if url_feedback.empty:
             return None
         
-        # Count votes
         safe_votes = len(url_feedback[url_feedback['verdict'] == 'safe'])
         phishing_votes = len(url_feedback[url_feedback['verdict'] == 'phishing'])
         total_votes = safe_votes + phishing_votes
         
-        # Only use feedback score if enough votes
         if total_votes < min_votes:
             return None
         
-        # Calculate risk percentage (phishing votes / total votes)
         risk_score = (phishing_votes / total_votes) * 100
         debug_print(f"Feedback score for {url}: {risk_score:.1f}% ({safe_votes} safe, {phishing_votes} phishing)")
         return risk_score
@@ -169,7 +168,7 @@ def get_url_feedback_summary(url):
 def archive_feedback():
     """Archive feedback on Hugging Face."""
     try:
-        df = read_csv_from_hub("feedback.csv")
+        df = get_feedback()
         if df.empty:
             return False
         
