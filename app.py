@@ -406,18 +406,62 @@ if st.session_state.page == 'main':
 
 else:
     if not st.session_state.admin_logged_in:
-        st.title("Admin Login")
-        st.write("Enter your credentials to access the admin dashboard.")
+        # Centered Admin Login Page
+        st.markdown("""
+            <style>
+            .login-container {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 40px 20px;
+                width: 100%;
+            }
+            .login-container h1 {
+                font-size: 2.5rem;
+                font-weight: 600;
+                margin-bottom: 10px;
+                text-align: center;
+                width: 100%;
+            }
+            .login-container p {
+                font-size: 1.1rem;
+                color: #666;
+                margin-top: 10px;
+                margin-bottom: 30px;
+                text-align: center;
+                width: 100%;
+            }
+            .login-container hr {
+                margin: 20px 0 30px 0;
+                border: 0;
+                border-top: 1px solid #e0e0e0;
+                width: 100%;
+            }
+            .stTextInput > div {
+                width: 100% !important;
+            }
+            .stButton > button {
+                width: 100% !important;
+            }
+            </style>
+            <div class="login-container">
+                <h1>Admin Login</h1>
+                <p>Enter your credentials to access the admin dashboard.</p>
+                <hr>
+            </div>
+        """, unsafe_allow_html=True)
 
         col1, col2, col3 = st.columns([1, 1.5, 1])
         with col2:
-            st.markdown("---")
-            username = st.text_input("Username", placeholder="Enter username")
-            password = st.text_input("Password", type="password", placeholder="Enter password")
+            username = st.text_input("Username", placeholder="Enter username", key="admin_user")
+            password = st.text_input("Password", type="password", placeholder="Enter password", key="admin_pass")
 
-            if st.button("Login", use_container_width=True):
+            if st.button("Login", use_container_width=True, key="admin_login"):
                 if username == "admin" and password == "ShopShield2024!":
                     st.session_state.admin_logged_in = True
+                    st.session_state.admin_username = username
+                    st.success("Login successful!")
                     st.rerun()
                 else:
                     st.error("Invalid credentials")
