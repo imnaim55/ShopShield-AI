@@ -16,7 +16,7 @@ def check_ssl_certificate(url):
             return get_default_ssl_info()
         
         context = ssl.create_default_context()
-        with socket.create_connection((domain, 443), timeout=5) as sock:
+        with socket.create_connection((domain, 443), timeout=3) as sock:
             with context.wrap_socket(sock, server_hostname=domain) as ssock:
                 cert = ssock.getpeercert()
                 
@@ -33,11 +33,13 @@ def check_ssl_certificate(url):
                     }
                 
     except socket.gaierror:
-        print(f"SSL check: Could not resolve domain")
+        print("SSL check: Could not resolve domain")
     except ConnectionRefusedError:
-        print(f"SSL check: Connection refused")
+        print("SSL check: Connection refused")
     except socket.timeout:
-        print(f"SSL check: Connection timeout")
+        print("SSL check: Connection timeout")
+    except socket.error as e:
+        print(f"SSL check: Socket error - {e}")
     except Exception as e:
         print(f"SSL check error: {e}")
     
@@ -73,7 +75,7 @@ def get_ssl_risk_score(url):
     ssl_info = check_ssl_certificate(url)
     
     if ssl_info['has_ssl'] == 0:
-        return 25
+        return 20
     
     if not ssl_info['ssl_valid']:
         return 30
@@ -95,7 +97,7 @@ def get_ssl_summary(url):
     ssl_info = check_ssl_certificate(url)
     
     if ssl_info['has_ssl'] == 0:
-        return "SSL Certificate: Not installed (insecure connection)"
+        return "SSL Certificate: Not installed (insecure)"
     
     if not ssl_info['ssl_valid']:
         return "SSL Certificate: Expired or invalid"

@@ -6,7 +6,8 @@ Developed by Naim Shaikh
 import whois
 from datetime import datetime, timezone
 import re
-import pytz
+import socket
+import timeout_decorator
 
 def get_domain_metadata(url):
     try:
@@ -68,6 +69,9 @@ def get_domain_metadata(url):
         
         return result
         
+    except socket.error as e:
+        print(f"Socket error in WHOIS lookup: {e}")
+        return get_fallback_metadata(extract_domain(url))
     except Exception as e:
         print(f"Domain analysis error: {e}")
         return get_fallback_metadata(extract_domain(url))
@@ -126,27 +130,27 @@ def get_domain_risk_score(url):
     metadata = get_domain_metadata(url)
     
     if metadata['domain_age_days'] == -1:
-        return 0
+        return 15
     
     risk = 0
     
     if metadata['domain_age_days'] < 30:
-        risk += 25
+        risk += 30
     elif metadata['domain_age_days'] < 90:
-        risk += 15
+        risk += 20
     elif metadata['domain_age_days'] < 180:
-        risk += 8
-    
-    if metadata['days_until_expiry'] < 30 and metadata['days_until_expiry'] > 0:
-        risk += 15
-    elif metadata['days_until_expiry'] < 90 and metadata['days_until_expiry'] > 0:
-        risk += 8
-    
-    if metadata['is_private_registered'] == 1:
         risk += 10
     
+    if metadata['days_until_expiry'] < 30 and metadata['days_until_expiry'] > 0:
+        risk += 20
+    elif metadata['days_until_expiry'] < 90 and metadata['days_until_expiry'] > 0:
+        risk += 10
+    
+    if metadata['is_private_registered'] == 1:
+        risk += 15
+    
     if metadata['has_registrar'] == 0:
-        risk += 5
+        risk += 10
     
     return min(100, risk)
 
@@ -163,7 +167,7 @@ def get_domain_summary(url):
     
     if metadata['whois_success'] == 0:
         domain = extract_domain(url)
-        return f"Domain: {domain if domain else 'Unknown'} (WHOIS information unavailable - domain may be new or blocked)"
+        return f"Domain: {domain if domain else 'Unknown'} (WHOIS information unavailable)"
     
     if metadata['domain_age_days'] == -1:
         return f"Domain: {metadata['domain']} (Age information unavailable)"
