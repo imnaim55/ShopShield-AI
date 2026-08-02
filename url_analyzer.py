@@ -11,6 +11,8 @@ import re
 import math
 from collections import Counter
 from huggingface_hub import hf_hub_download
+from domain_analyzer import get_domain_risk_score, get_domain_summary, is_new_domain
+from ssl_analyzer import get_ssl_risk_score, get_ssl_summary
 
 MODEL_PATH = os.path.join("models", "url_phishing_model.pkl")
 HF_MODEL_REPO = "imnaim55/shopshield-model"
@@ -72,7 +74,7 @@ IP_PATTERN = r"(\d{1,3}\.){3}\d{1,3}"
 
 def load_model():
     try:
-        print("Loading model from Hugging Face Hub...")
+        print("Loading model from Hugging Face Hub")
         model_path = hf_hub_download(
             repo_id=HF_MODEL_REPO,
             filename=HF_MODEL_FILE,
@@ -213,13 +215,11 @@ def predict_url_risk(url):
         url_lower = url.lower()
         domain = urllib.parse.urlparse(url).netloc.lower()
 
-        # 1. Whitelist check
         for safe_domain in SAFE_DOMAINS:
             if domain == safe_domain or domain.endswith('.' + safe_domain):
                 print(f"Safe domain: {domain}")
                 return 5.0
 
-        # 2. Heuristic analysis
         heuristic_risk = heuristic_analysis(url)
         print(f"Heuristic risk: {heuristic_risk}%")
 
@@ -227,7 +227,12 @@ def predict_url_risk(url):
             print(f"High risk from heuristic: {heuristic_risk}%")
             return heuristic_risk
 
-        # 3. ML model prediction
+        domain_risk = get_domain_risk_score(url)
+        print(f"Domain risk: {domain_risk}%")
+
+        ssl_risk = get_ssl_risk_score(url)
+        print(f"SSL risk: {ssl_risk}%")
+
         if model is not None:
             try:
                 features, _ = extract_features_from_url(url)
@@ -241,12 +246,25 @@ def predict_url_risk(url):
                     ml_risk = float(round(phishing_prob * 100, 2))
                     print(f"ML risk: {ml_risk}%")
 
-                    final_risk = max(heuristic_risk, ml_risk)
-                    return min(100.0, final_risk)
+                    final_risk = (ml_risk * 0.4) + (heuristic_risk * 0.3) + (domain_risk * 0.2) + (ssl_risk * 0.1)
+                    final_risk = min(100.0, final_risk)
+                    print(f"Final risk: {final_risk}%")
+                    
+                    domain_summary = get_domain_summary(url)
+                    print(f"Domain info: {domain_summary}")
+                    
+                    ssl_summary = get_ssl_summary(url)
+                    print(f"SSL info: {ssl_summary}")
+                    
+                    return final_risk
             except Exception as e:
                 print(f"ML error: {e}")
 
-        return heuristic_risk
+        final_risk = (heuristic_risk * 0.5) + (domain_risk * 0.3) + (ssl_risk * 0.2)
+        final_risk = min(100.0, final_risk)
+        print(f"Final risk: {final_risk}%")
+        return final_risk
+        
     except Exception as e:
         print(f"Prediction error: {e}")
         return heuristic_analysis(url)
@@ -262,23 +280,3 @@ def get_model_info():
         "classes": model.classes_.tolist() if hasattr(model, 'classes_') else "Unknown",
         "trees": model.n_estimators if hasattr(model, 'n_estimators') else "Unknown"
     }
-
-
-if __name__ == "__main__":
-    print("=" * 70)
-    print("Testing URL Analyzer")
-    print("=" * 70)
-    
-    test_urls = [
-        "https://www.amazon.com",
-        "https://www.google.com",
-        "http://103.20.213.34:8080/free-shop-login",
-        "https://secure-paypal-verify.xyz",
-        "https://hindmovie.icu",
-        "https://vegamovie.me",
-    ]
-    
-    for url in test_urls:
-        risk = predict_url_risk(url)
-        status = "PHISHING" if risk >= 70 else "SUSPICIOUS" if risk >= 30 else "SAFE"
-        print(f"{status}: {url} -> {risk:.1f}%")

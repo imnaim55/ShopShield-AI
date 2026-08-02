@@ -1,5 +1,5 @@
 """
-Auto-Retraining Module - ShopShield AI (Virtual)
+Auto-Retraining Module - ShopShield AI
 Developed by Naim Shaikh
 """
 
@@ -11,10 +11,7 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from feedback_storage import (
-    get_feedback, archive_feedback, download_dataset_from_hub, 
-    upload_model_to_hub
-)
+from feedback_storage import get_feedback, archive_feedback, download_dataset_from_hub, upload_model_to_hub
 from url_analyzer import extract_features_from_url
 import warnings
 warnings.filterwarnings('ignore')
@@ -34,12 +31,10 @@ def debug_print(msg):
 
 def auto_retrain(min_samples=1, force=True):
     debug_print("=" * 60)
-    debug_print("AUTO-RETRAINING STARTED (Virtual Mode)")
+    debug_print("AUTO-RETRAINING STARTED")
     debug_print("=" * 60)
 
     try:
-        # Step 1: Get feedback from Hugging Face
-        debug_print("Getting feedback from Hugging Face...")
         feedback_df = get_feedback()
         debug_print(f"Raw feedback entries: {len(feedback_df)}")
 
@@ -64,7 +59,6 @@ def auto_retrain(min_samples=1, force=True):
         all_features = []
         all_labels = []
 
-        # Step 2: Download dataset from Hugging Face
         dataset_df = download_dataset_from_hub()
         if dataset_df is not None:
             if all(col in dataset_df.columns for col in FEATURE_COLUMNS):
@@ -78,7 +72,6 @@ def auto_retrain(min_samples=1, force=True):
         else:
             debug_print("Could not download dataset")
 
-        # Step 3: Process feedback
         processed = 0
         for _, row in feedback_df.iterrows():
             try:
@@ -101,8 +94,7 @@ def auto_retrain(min_samples=1, force=True):
         y = np.array(all_labels)
         debug_print(f"Total samples: {len(X)}")
 
-        # Step 4: Train model
-        debug_print("Training Random Forest model...")
+        debug_print("Training Random Forest model")
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42, stratify=y
         )
@@ -121,17 +113,14 @@ def auto_retrain(min_samples=1, force=True):
         y_pred = model.predict(X_test)
         debug_print(f"Accuracy: {accuracy_score(y_test, y_pred):.4f}")
 
-        # Step 5: Save model locally (temporary)
         os.makedirs("models", exist_ok=True)
         with open(MODEL_PATH, 'wb') as f:
             pickle.dump(model, f)
         debug_print(f"Model saved locally")
 
-        # Step 6: Upload model to Hugging Face
-        debug_print("Uploading model to Hugging Face...")
+        debug_print("Uploading model to Hugging Face")
         upload_model_to_hub(MODEL_PATH)
 
-        # Step 7: Archive feedback on Hugging Face
         archive_feedback()
         debug_print("Feedback archived on Hugging Face")
 

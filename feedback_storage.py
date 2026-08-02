@@ -1,5 +1,5 @@
 """
-Feedback Storage Module - ShopShield AI (Pure Virtual)
+Feedback Storage Module - ShopShield AI
 Developed by Naim Shaikh
 """
 

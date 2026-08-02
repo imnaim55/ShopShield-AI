@@ -1,10 +1,12 @@
 """
-ShopShield AI - Phishing Detection System (Virtual)
+ShopShield AI - Phishing Detection System
 Developed by Naim Shaikh
 """
 
 from url_analyzer import predict_url_risk
 from feedback_storage import save_feedback, get_feedback_count
+from domain_analyzer import get_domain_summary, is_new_domain
+from ssl_analyzer import get_ssl_summary
 import streamlit as st
 import time
 import re
@@ -179,7 +181,7 @@ with st.sidebar:
     st.divider()
 
     url_input = st.text_input(
-        "Website URL (Optional)",
+        "Website URL",
         placeholder="https://example.com",
         key="url_input_main",
         value=st.session_state.get('url_input_main', '')
@@ -331,6 +333,32 @@ if st.session_state.page == 'main':
                 st.caption("The text appears to be free from common deceptive patterns.")
 
         if has_url:
+            st.divider()
+            st.subheader("Detailed URL Analysis")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("Domain Information")
+                domain_info = get_domain_summary(current_url)
+                st.info(domain_info)
+                
+                if is_new_domain(current_url):
+                    st.warning("This domain is relatively new - exercise caution")
+                else:
+                    st.success("This domain has been established for some time")
+            
+            with col2:
+                st.markdown("SSL Certificate Information")
+                ssl_info = get_ssl_summary(current_url)
+                if "Not installed" in ssl_info:
+                    st.error(ssl_info)
+                elif "Expired" in ssl_info:
+                    st.error(ssl_info)
+                elif "Expiring soon" in ssl_info:
+                    st.warning(ssl_info)
+                else:
+                    st.success(ssl_info)
+
             st.divider()
             st.subheader("Help Improve ShopShield AI")
             st.write("Was this analysis correct? Your feedback helps train the model.")
@@ -487,6 +515,5 @@ else:
                 st.metric("Classes", str(model_info.get('classes', 'N/A')))
         else:
             st.warning("Model is not loaded. Check your model file.")
-            st.info("Run 'python create_model.py' to create an initial model.")
 
         st.caption("Developed by Naim Shaikh")
