@@ -31,47 +31,29 @@ def get_indian_time():
 
 
 def login_page():
-    # Use columns to center the entire login form
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
+    st.title("Admin Login")
+    col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
-        # Centered login container using HTML
-        st.markdown("""
-            <div style="text-align: center; padding: 20px 0;">
-                <h1 style="font-size: 2.5rem; margin-bottom: 0; font-weight: 600;">Admin Login</h1>
-                <p style="font-size: 1.1rem; color: #666; margin-top: 10px; margin-bottom: 30px;">
-                    Enter your credentials to access the admin dashboard.
-                </p>
-                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e0e0e0;">
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown("---")
+        username = st.text_input("Username", placeholder="Enter username")
+        password = st.text_input("Password", type="password", placeholder="Enter password")
         
-        # Username field
-        st.markdown('<div style="text-align: left;">', unsafe_allow_html=True)
-        username = st.text_input("Username", placeholder="Enter username", key="admin_user")
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Password field
-        st.markdown('<div style="text-align: left;">', unsafe_allow_html=True)
-        password = st.text_input("Password", type="password", placeholder="Enter password", key="admin_pass")
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Login button
-        if st.button("Login", use_container_width=True, key="admin_login"):
+        if st.button("Login", use_container_width=True):
+            # Hardcoded authentication (no external file needed)
             if username == "admin" and password == "ShopShield2024!":
                 st.session_state.admin_logged_in = True
                 st.session_state.admin_username = username
-                st.success("Login successful!")
                 st.rerun()
             else:
                 st.error("Invalid credentials")
 
 
+# Show login page if not logged in
 if not st.session_state.admin_logged_in:
     login_page()
     st.stop()
 
-# Main Dashboard
+# Main Dashboard (only visible after login)
 st.title("Admin Dashboard")
 
 # Sidebar
