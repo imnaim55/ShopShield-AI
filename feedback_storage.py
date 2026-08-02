@@ -47,6 +47,13 @@ def get_feedback():
         return pd.DataFrame(columns=['url', 'risk_score', 'verdict', 'comment', 'timestamp'])
 
 
+def get_archive_feedback():
+    try:
+        return read_csv_from_hub("feedback_archive.csv")
+    except:
+        return pd.DataFrame(columns=['url', 'risk_score', 'verdict', 'comment', 'timestamp'])
+
+
 def write_csv_to_hub(df, filename):
     try:
         csv_data = df.to_csv(index=False)
