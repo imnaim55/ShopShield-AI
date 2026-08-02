@@ -24,7 +24,6 @@ def debug_print(msg):
 
 
 def read_csv_from_hub(filename):
-    """Read CSV directly from Hugging Face Hub."""
     try:
         url = f"https://huggingface.co/datasets/{HF_FEEDBACK_REPO}/resolve/main/{filename}"
         response = requests.get(url)
@@ -38,12 +37,10 @@ def read_csv_from_hub(filename):
 
 @st.cache_data(ttl=10)
 def get_feedback_cached():
-    """Get feedback with automatic cache refresh."""
     return read_csv_from_hub("feedback.csv")
 
 
 def get_feedback():
-    """Get all feedback from Hugging Face (auto-refresh)."""
     try:
         return get_feedback_cached()
     except:
@@ -51,7 +48,6 @@ def get_feedback():
 
 
 def write_csv_to_hub(df, filename):
-    """Write CSV directly to Hugging Face Hub."""
     try:
         csv_data = df.to_csv(index=False)
         api = HfApi()
@@ -71,7 +67,6 @@ def write_csv_to_hub(df, filename):
 
 
 def save_feedback(url, risk, verdict, comment=""):
-    """Save feedback directly to Hugging Face."""
     try:
         feedback_entry = {
             "url": url,
@@ -99,7 +94,6 @@ def save_feedback(url, risk, verdict, comment=""):
 
 
 def get_feedback_count():
-    """Get number of feedback entries."""
     try:
         df = get_feedback()
         return len(df)
@@ -107,63 +101,7 @@ def get_feedback_count():
         return 0
 
 
-def get_url_feedback_score(url, min_votes=3):
-    """
-    Get feedback-based risk score for a specific URL.
-    """
-    try:
-        df = get_feedback()
-        if df.empty:
-            return None
-        
-        url_feedback = df[df['url'] == url]
-        if url_feedback.empty:
-            return None
-        
-        safe_votes = len(url_feedback[url_feedback['verdict'] == 'safe'])
-        phishing_votes = len(url_feedback[url_feedback['verdict'] == 'phishing'])
-        total_votes = safe_votes + phishing_votes
-        
-        if total_votes < min_votes:
-            return None
-        
-        risk_score = (phishing_votes / total_votes) * 100
-        return risk_score
-        
-    except Exception as e:
-        debug_print(f"Error getting URL feedback score: {e}")
-        return None
-
-
-def get_url_feedback_summary(url):
-    """Get detailed feedback summary for a URL."""
-    try:
-        df = get_feedback()
-        if df.empty:
-            return None
-        
-        url_feedback = df[df['url'] == url]
-        if url_feedback.empty:
-            return None
-        
-        safe_votes = len(url_feedback[url_feedback['verdict'] == 'safe'])
-        phishing_votes = len(url_feedback[url_feedback['verdict'] == 'phishing'])
-        total_votes = safe_votes + phishing_votes
-        
-        return {
-            'url': url,
-            'safe_votes': safe_votes,
-            'phishing_votes': phishing_votes,
-            'total_votes': total_votes,
-            'risk_score': (phishing_votes / total_votes) * 100 if total_votes > 0 else 0
-        }
-    except Exception as e:
-        debug_print(f"Error getting URL feedback summary: {e}")
-        return None
-
-
 def archive_feedback():
-    """Archive feedback on Hugging Face."""
     try:
         df = get_feedback()
         if df.empty:
@@ -187,7 +125,6 @@ def archive_feedback():
 
 
 def download_dataset_from_hub():
-    """Download phishing_features.csv from Hugging Face."""
     try:
         from huggingface_hub import hf_hub_download
         dataset_path = hf_hub_download(
@@ -204,7 +141,6 @@ def download_dataset_from_hub():
 
 
 def upload_model_to_hub(model_path="models/url_phishing_model.pkl"):
-    """Upload trained model to Hugging Face."""
     if not os.path.exists(model_path):
         return False
     try:
@@ -224,7 +160,6 @@ def upload_model_to_hub(model_path="models/url_phishing_model.pkl"):
 
 
 def load_model_from_hub():
-    """Load model directly from Hugging Face."""
     try:
         from huggingface_hub import hf_hub_download
         import pickle

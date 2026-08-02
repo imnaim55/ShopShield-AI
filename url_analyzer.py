@@ -1,5 +1,5 @@
 """
-URL Phishing Detection Module - ShopShield AI (Virtual)
+URL Phishing Detection Module - ShopShield AI
 Developed by Naim Shaikh
 """
 
@@ -213,26 +213,13 @@ def predict_url_risk(url):
         url_lower = url.lower()
         domain = urllib.parse.urlparse(url).netloc.lower()
 
+        # 1. Whitelist check
         for safe_domain in SAFE_DOMAINS:
             if domain == safe_domain or domain.endswith('.' + safe_domain):
                 print(f"Safe domain: {domain}")
                 return 5.0
 
-        # Feedback score (lazy import to avoid circular dependency)
-        try:
-            from feedback_storage import get_url_feedback_score, get_url_feedback_summary
-            feedback_score = get_url_feedback_score(url, min_votes=3)
-            if feedback_score is not None:
-                print(f"Using feedback score: {feedback_score:.1f}%")
-                summary = get_url_feedback_summary(url)
-                if summary:
-                    print(f"Votes: {summary['safe_votes']} safe, {summary['phishing_votes']} phishing")
-                return feedback_score
-        except ImportError:
-            pass
-        except Exception as e:
-            print(f"Feedback score error: {e}")
-
+        # 2. Heuristic analysis
         heuristic_risk = heuristic_analysis(url)
         print(f"Heuristic risk: {heuristic_risk}%")
 
@@ -240,6 +227,7 @@ def predict_url_risk(url):
             print(f"High risk from heuristic: {heuristic_risk}%")
             return heuristic_risk
 
+        # 3. ML model prediction
         if model is not None:
             try:
                 features, _ = extract_features_from_url(url)
@@ -278,7 +266,7 @@ def get_model_info():
 
 if __name__ == "__main__":
     print("=" * 70)
-    print("Testing URL Analyzer with Feedback Scoring")
+    print("Testing URL Analyzer")
     print("=" * 70)
     
     test_urls = [

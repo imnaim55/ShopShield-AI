@@ -177,16 +177,6 @@ with st.sidebar:
         st.rerun()
 
     st.divider()
-    
-    st.divider()
-    if st.button("🔄 Refresh Feedback Data"):
-        st.cache_data.clear()
-        st.success("Feedback data refreshed!")
-        st.rerun()
-    
-    # Show last updated time
-    from datetime import datetime
-    st.caption(f"Last updated: {datetime.now().strftime('%H:%M:%S')}")
 
     url_input = st.text_input(
         "Website URL (Optional)",
