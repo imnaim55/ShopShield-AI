@@ -7,7 +7,6 @@ import whois
 from datetime import datetime, timezone
 import re
 import socket
-import timeout_decorator
 
 def get_domain_metadata(url):
     try:
