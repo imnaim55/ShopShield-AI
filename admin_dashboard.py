@@ -31,21 +31,32 @@ def get_indian_time():
 
 
 def login_page():
-    # Centered login page
+    # Use columns to center the entire login form
     col1, col2, col3 = st.columns([1, 2, 1])
+    
     with col2:
+        # Centered login container using HTML
         st.markdown("""
             <div style="text-align: center; padding: 20px 0;">
-                <h1 style="font-size: 2.5rem; margin-bottom: 0;">Admin Login</h1>
-                <p style="font-size: 1.1rem; color: #666; margin-top: 10px;">Enter your credentials to access the admin dashboard.</p>
+                <h1 style="font-size: 2.5rem; margin-bottom: 0; font-weight: 600;">Admin Login</h1>
+                <p style="font-size: 1.1rem; color: #666; margin-top: 10px; margin-bottom: 30px;">
+                    Enter your credentials to access the admin dashboard.
+                </p>
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e0e0e0;">
             </div>
         """, unsafe_allow_html=True)
         
-        st.markdown("---")
-        
+        # Username field
+        st.markdown('<div style="text-align: left;">', unsafe_allow_html=True)
         username = st.text_input("Username", placeholder="Enter username", key="admin_user")
-        password = st.text_input("Password", type="password", placeholder="Enter password", key="admin_pass")
+        st.markdown('</div>', unsafe_allow_html=True)
         
+        # Password field
+        st.markdown('<div style="text-align: left;">', unsafe_allow_html=True)
+        password = st.text_input("Password", type="password", placeholder="Enter password", key="admin_pass")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Login button
         if st.button("Login", use_container_width=True, key="admin_login"):
             if username == "admin" and password == "ShopShield2024!":
                 st.session_state.admin_logged_in = True
