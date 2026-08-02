@@ -6,10 +6,16 @@ Developed by Naim Shaikh
 import whois
 from datetime import datetime
 import re
+import requests
+import json
 
 def get_domain_metadata(url):
     try:
         domain = extract_domain(url)
+        
+        if not domain:
+            return get_default_metadata(url)
+        
         w = whois.whois(domain)
         
         result = {
@@ -20,7 +26,8 @@ def get_domain_metadata(url):
             'domain': domain,
             'creation_date': None,
             'expiration_date': None,
-            'registrar': None
+            'registrar': None,
+            'whois_success': 1
         }
         
         if w.creation_date:
@@ -47,33 +54,65 @@ def get_domain_metadata(url):
             
         if w.org and 'privacy' in str(w.org).lower():
             result['is_private_registered'] = 1
-            
+        
         return result
         
+    except whois.parser.PywhoisError as e:
+        print(f"WHOIS lookup failed: {e}")
+        return get_fallback_metadata(domain)
     except Exception as e:
         print(f"Domain analysis error: {e}")
-        return {
-            'domain_age_days': -1,
-            'days_until_expiry': -1,
-            'has_registrar': 0,
-            'is_private_registered': 0,
-            'domain': extract_domain(url),
-            'creation_date': None,
-            'expiration_date': None,
-            'registrar': None
-        }
+        return get_fallback_metadata(extract_domain(url))
+
+
+def get_default_metadata(url):
+    domain = extract_domain(url)
+    return {
+        'domain_age_days': -1,
+        'days_until_expiry': -1,
+        'has_registrar': 0,
+        'is_private_registered': 0,
+        'domain': domain,
+        'creation_date': None,
+        'expiration_date': None,
+        'registrar': None,
+        'whois_success': 0
+    }
+
+
+def get_fallback_metadata(domain):
+    return {
+        'domain_age_days': -1,
+        'days_until_expiry': -1,
+        'has_registrar': 0,
+        'is_private_registered': 0,
+        'domain': domain,
+        'creation_date': None,
+        'expiration_date': None,
+        'registrar': None,
+        'whois_success': 0
+    }
+
 
 def extract_domain(url):
-    url = url.strip().lower()
-    if '://' in url:
-        url = url.split('://')[1]
-    if '/' in url:
-        url = url.split('/')[0]
-    if ':' in url:
-        url = url.split(':')[0]
-    if '@' in url:
-        url = url.split('@')[1]
-    return url
+    try:
+        url = url.strip().lower()
+        if '://' in url:
+            url = url.split('://')[1]
+        if '/' in url:
+            url = url.split('/')[0]
+        if ':' in url:
+            url = url.split(':')[0]
+        if '@' in url:
+            url = url.split('@')[1]
+        
+        if url.startswith('www.'):
+            url = url[4:]
+        
+        return url
+    except:
+        return None
+
 
 def get_domain_risk_score(url):
     metadata = get_domain_metadata(url)
@@ -103,16 +142,23 @@ def get_domain_risk_score(url):
     
     return min(100, risk)
 
+
 def is_new_domain(url):
     metadata = get_domain_metadata(url)
     if metadata['domain_age_days'] == -1:
         return False
     return metadata['domain_age_days'] < 90
 
+
 def get_domain_summary(url):
     metadata = get_domain_metadata(url)
+    
+    if metadata['whois_success'] == 0:
+        domain = extract_domain(url)
+        return f"Domain: {domain if domain else 'Unknown'} (WHOIS information unavailable - domain may be new or blocked)"
+    
     if metadata['domain_age_days'] == -1:
-        return "Domain information unavailable"
+        return f"Domain: {metadata['domain']} (Age information unavailable)"
     
     parts = []
     if metadata['domain_age_days'] > 0:
@@ -128,4 +174,11 @@ def get_domain_summary(url):
     else:
         age_text = "Unknown"
     
-    return f"Domain: {metadata['domain']}, Age: {age_text}, Registered: {metadata['creation_date'].strftime('%Y-%m-%d') if metadata['creation_date'] else 'Unknown'}"
+    registrar_text = f", Registrar: {metadata['registrar']}" if metadata['registrar'] else ""
+    private_text = " (Private Registration)" if metadata['is_private_registered'] == 1 else ""
+    
+    if metadata['creation_date']:
+        date_text = metadata['creation_date'].strftime('%Y-%m-%d')
+        return f"Domain: {metadata['domain']}, Created: {date_text}, Age: {age_text}{private_text}{registrar_text}"
+    else:
+        return f"Domain: {metadata['domain']}, Age: {age_text}{private_text}{registrar_text}"
