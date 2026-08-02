@@ -25,7 +25,9 @@ SAFE_DOMAINS = [
     'nykaa.com', 'zara.com', 'hm.com', 'adidas.com', 'puma.com',
     'walmart.com', 'target.com', 'youtube.com', 'reddit.com',
     'twitter.com', 'linkedin.com', 'facebook.com', 'instagram.com',
-    'python.org', 'wikipedia.org', 'dropbox.com'
+    'python.org', 'wikipedia.org', 'dropbox.com',
+    'paypal.com', 'ebay.com', 'bestbuy.com', 'costco.com',
+    'homedepot.com', 'lowes.com', 'macys.com', 'sephora.com'
 ]
 
 SUSPICIOUS_KEYWORDS = [
@@ -38,34 +40,46 @@ SUSPICIOUS_KEYWORDS = [
     "download", "movie", "film", "stream", "watch", "hd",
     "720p", "1080p", "4k", "bluray", "dvd", "torrent",
     "subtitle", "english", "hindi", "tamil", "telugu",
-    "malayalam", "kannada", "punjabi", "bengali"
+    "malayalam", "kannada", "punjabi", "bengali",
+    "crypto", "bitcoin", "ethereum", "wallet", "investment",
+    "loan", "credit", "card", "insurance", "mortgage",
+    "job", "career", "interview", "salary", "wfh"
 ]
 
 SUSPICIOUS_TLDS = [
     '.xyz', '.top', '.club', '.online', '.site', '.win', '.bid',
     '.tk', '.ml', '.ga', '.cf', '.gq', '.click', '.download',
     '.biz', '.info', '.stream', '.date', '.men', '.loan',
-    '.racing', '.review', '.trade', '.lol', '.work', '.fun'
+    '.racing', '.review', '.trade', '.lol', '.work', '.fun',
+    '.zip', '.mov', '.movie', '.download', '.run', '.place', '.rest', '.uno',
+    '.cricket', '.football', '.racing', '.store', '.shop', '.host', '.cloud'
 ]
 
 BRAND_PATTERNS = [
     "paypal", "amazon", "microsoft", "apple", "google",
     "facebook", "netflix", "spotify", "roblox", "instagram",
-    "whatsapp", "telegram", "discord", "twitch", "twitter"
+    "whatsapp", "telegram", "discord", "twitch", "twitter",
+    "ebay", "walmart", "target", "bestbuy", "costco",
+    "homedepot", "lowes", "macys", "sephora", "nike",
+    "adidas", "puma", "zara", "hm", "myntra", "flipkart"
 ]
 
 SUSPICIOUS_PATHS = [
     "/verify", "/login", "/account", "/secure", "/confirm",
     "/update", "/reset", "/auth", "/signin", "/sign-in",
     "/log-in", "/user", "/profile", "/wallet", "/payment",
-    "/bank", "/funds", "/withdraw", "/deposit", "/transfer"
+    "/bank", "/funds", "/withdraw", "/deposit", "/transfer",
+    "/validate", "/authenticate", "/recover", "/password",
+    "/reset-password", "/change-password", "/2fa", "/otp"
 ]
 
 SCAM_PATTERNS = [
     "free-gift", "free-offer", "gift-offer", "bonus-offer",
     "win-prize", "claim-prize", "lucky-winner", "freebie",
     "gift-card", "free-money", "earn-money", "make-money",
-    "quick-cash", "easy-money", "get-rich", "investment"
+    "quick-cash", "easy-money", "get-rich", "investment",
+    "referral-bonus", "signup-bonus", "welcome-bonus",
+    "limited-time", "act-now", "dont-miss", "hurry-up"
 ]
 
 UNUSUAL_PORTS = [":8080", ":8443", ":3000", ":5000", ":8000", ":8888", ":4443", ":7000"]
@@ -173,16 +187,18 @@ def heuristic_analysis(url):
     risk = 0.0
 
     if re.search(IP_PATTERN, url_lower):
-        risk += 50
+        risk += 55
 
     if any(port in url_lower for port in UNUSUAL_PORTS):
-        risk += 35
+        risk += 40
 
     if any(tld in url_lower for tld in SUSPICIOUS_TLDS):
-        risk += 25
+        risk += 30
 
     keyword_count = sum(1 for word in SUSPICIOUS_KEYWORDS if word in url_lower)
-    if keyword_count >= 3:
+    if keyword_count >= 4:
+        risk += 35
+    elif keyword_count >= 3:
         risk += 25
     elif keyword_count >= 2:
         risk += 15
@@ -191,21 +207,30 @@ def heuristic_analysis(url):
 
     for brand in BRAND_PATTERNS:
         if brand in url_lower:
-            if any(sus in url_lower for sus in ["verify", "login", "account", "secure"]):
-                risk += 30
+            if any(sus in url_lower for sus in ["verify", "login", "account", "secure", "update"]):
+                risk += 35
                 break
 
     if not url_lower.startswith("https://"):
-        risk += 10
-
-    if any(path in url_lower for path in SUSPICIOUS_PATHS):
         risk += 15
 
-    if "@" in url_lower:
+    if any(path in url_lower for path in SUSPICIOUS_PATHS):
         risk += 20
 
-    if any(pattern in url_lower for pattern in SCAM_PATTERNS):
+    if "@" in url_lower:
         risk += 25
+
+    if any(pattern in url_lower for pattern in SCAM_PATTERNS):
+        risk += 30
+
+    if len(url_lower) > 100:
+        risk += 10
+
+    if url_lower.count("-") > 4:
+        risk += 10
+
+    if sum(c.isdigit() for c in url_lower) > 8:
+        risk += 10
 
     return min(100.0, risk)
 
@@ -223,7 +248,7 @@ def predict_url_risk(url):
         heuristic_risk = heuristic_analysis(url)
         print(f"Heuristic risk: {heuristic_risk}%")
 
-        if heuristic_risk >= 70:
+        if heuristic_risk >= 60:
             print(f"High risk from heuristic: {heuristic_risk}%")
             return heuristic_risk
 
@@ -246,7 +271,7 @@ def predict_url_risk(url):
                     ml_risk = float(round(phishing_prob * 100, 2))
                     print(f"ML risk: {ml_risk}%")
 
-                    final_risk = (ml_risk * 0.4) + (heuristic_risk * 0.3) + (domain_risk * 0.2) + (ssl_risk * 0.1)
+                    final_risk = (ml_risk * 0.35) + (heuristic_risk * 0.35) + (domain_risk * 0.20) + (ssl_risk * 0.10)
                     final_risk = min(100.0, final_risk)
                     print(f"Final risk: {final_risk}%")
                     
