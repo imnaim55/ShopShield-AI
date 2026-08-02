@@ -4,10 +4,9 @@ Developed by Naim Shaikh
 """
 
 import whois
-from datetime import datetime
+from datetime import datetime, timezone
 import re
-import requests
-import json
+import pytz
 
 def get_domain_metadata(url):
     try:
@@ -35,16 +34,28 @@ def get_domain_metadata(url):
                 creation_date = w.creation_date[0]
             else:
                 creation_date = w.creation_date
+            
+            if creation_date.tzinfo:
+                now = datetime.now(timezone.utc)
+                result['domain_age_days'] = (now - creation_date).days
+            else:
+                result['domain_age_days'] = (datetime.now() - creation_date).days
+            
             result['creation_date'] = creation_date
-            result['domain_age_days'] = (datetime.now() - creation_date).days
             
         if w.expiration_date:
             if isinstance(w.expiration_date, list):
                 expiry_date = w.expiration_date[0]
             else:
                 expiry_date = w.expiration_date
+            
+            if expiry_date.tzinfo:
+                now = datetime.now(timezone.utc)
+                result['days_until_expiry'] = (expiry_date - now).days
+            else:
+                result['days_until_expiry'] = (expiry_date - datetime.now()).days
+                
             result['expiration_date'] = expiry_date
-            result['days_until_expiry'] = (expiry_date - datetime.now()).days
             
         result['has_registrar'] = 1 if w.registrar else 0
         result['registrar'] = w.registrar if w.registrar else None
@@ -57,9 +68,6 @@ def get_domain_metadata(url):
         
         return result
         
-    except whois.parser.PywhoisError as e:
-        print(f"WHOIS lookup failed: {e}")
-        return get_fallback_metadata(domain)
     except Exception as e:
         print(f"Domain analysis error: {e}")
         return get_fallback_metadata(extract_domain(url))
@@ -178,7 +186,10 @@ def get_domain_summary(url):
     private_text = " (Private Registration)" if metadata['is_private_registered'] == 1 else ""
     
     if metadata['creation_date']:
-        date_text = metadata['creation_date'].strftime('%Y-%m-%d')
-        return f"Domain: {metadata['domain']}, Created: {date_text}, Age: {age_text}{private_text}{registrar_text}"
+        try:
+            date_text = metadata['creation_date'].strftime('%Y-%m-%d')
+            return f"Domain: {metadata['domain']}, Created: {date_text}, Age: {age_text}{private_text}{registrar_text}"
+        except:
+            return f"Domain: {metadata['domain']}, Age: {age_text}{private_text}{registrar_text}"
     else:
         return f"Domain: {metadata['domain']}, Age: {age_text}{private_text}{registrar_text}"

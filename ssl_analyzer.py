@@ -33,11 +33,11 @@ def check_ssl_certificate(url):
                     }
                 
     except socket.gaierror:
-        print(f"SSL check: Could not resolve domain {domain}")
+        print(f"SSL check: Could not resolve domain")
     except ConnectionRefusedError:
-        print(f"SSL check: Connection refused for {domain}")
+        print(f"SSL check: Connection refused")
     except socket.timeout:
-        print(f"SSL check: Connection timeout for {domain}")
+        print(f"SSL check: Connection timeout")
     except Exception as e:
         print(f"SSL check error: {e}")
     
