@@ -31,29 +31,36 @@ def get_indian_time():
 
 
 def login_page():
-    st.title("Admin Login")
-    col1, col2, col3 = st.columns([1, 1.5, 1])
+    # Centered login page
+    col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("---")
-        username = st.text_input("Username", placeholder="Enter username")
-        password = st.text_input("Password", type="password", placeholder="Enter password")
+        st.markdown("""
+            <div style="text-align: center; padding: 20px 0;">
+                <h1 style="font-size: 2.5rem; margin-bottom: 0;">Admin Login</h1>
+                <p style="font-size: 1.1rem; color: #666; margin-top: 10px;">Enter your credentials to access the admin dashboard.</p>
+            </div>
+        """, unsafe_allow_html=True)
         
-        if st.button("Login", use_container_width=True):
-            # Hardcoded authentication (no external file needed)
+        st.markdown("---")
+        
+        username = st.text_input("Username", placeholder="Enter username", key="admin_user")
+        password = st.text_input("Password", type="password", placeholder="Enter password", key="admin_pass")
+        
+        if st.button("Login", use_container_width=True, key="admin_login"):
             if username == "admin" and password == "ShopShield2024!":
                 st.session_state.admin_logged_in = True
                 st.session_state.admin_username = username
+                st.success("Login successful!")
                 st.rerun()
             else:
                 st.error("Invalid credentials")
 
 
-# Show login page if not logged in
 if not st.session_state.admin_logged_in:
     login_page()
     st.stop()
 
-# Main Dashboard (only visible after login)
+# Main Dashboard
 st.title("Admin Dashboard")
 
 # Sidebar
