@@ -401,9 +401,6 @@ with st.sidebar:
     
     if feedback_count >= 5:
         st.success("Auto-retraining ready")
-    
-    st.caption("Detects phishing using ML + heuristics")
-    st.caption("Developed by Naim Shaikh")
 
 
 if st.session_state.page == 'main':
