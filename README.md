@@ -1,15 +1,21 @@
+# ShopShield AI
+
 ## Overview
 
 ShopShield AI is an intelligent phishing detection system that combines Machine Learning with heuristic analysis to identify malicious URLs and deceptive dark patterns in real-time. The system continuously improves through user feedback, making it a self-learning security tool.
 
+---
+
 ## Key Features
 
-- URL Phishing Detection using Random Forest ML model with heuristic rules
-- Dark Pattern Analysis identifying deceptive UX patterns
-- Self-Learning System with auto-retraining from user feedback
-- Admin Dashboard for monitoring feedback, retraining model, and viewing analytics
-- Cloud Storage with model and feedback persistence on Hugging Face Hub
-- Real-time Analysis with instant risk scoring for any URL
+- **URL Phishing Detection** – Uses Random Forest ML model with heuristic rules
+- **Dark Pattern Analysis** – Identifies deceptive UX patterns
+- **Self-Learning System** – Auto-retrains from user feedback
+- **Admin Dashboard** – Monitor feedback, retrain model, and view analytics
+- **Cloud Storage** – Model and feedback persistence on Hugging Face Hub
+- **Real-time Analysis** – Instant risk scoring for any URL
+
+---
 
 ## Live Demo
 
@@ -18,6 +24,8 @@ ShopShield AI is an intelligent phishing detection system that combines Machine 
 **Admin Dashboard Credentials (Testing Only):**
 - Username: `admin`
 - Password: `ShopShield2024!`
+
+---
 
 ## Technology Stack
 
@@ -29,6 +37,8 @@ ShopShield AI is an intelligent phishing detection system that combines Machine 
 | Storage | Hugging Face Hub | 0.19.0+ |
 | Deployment | Streamlit Cloud | - |
 | Language | Python | 3.8+ |
+
+---
 
 ## Project Structure
 ShopShield-AI/
@@ -42,7 +52,7 @@ ShopShield-AI/
 ├── ssl_analyzer.py # SSL Certificate Validation
 ├── requirements.txt # Dependencies
 ├── README.md # Documentation
-├── CONTRIBUTING.md # Contribution
+├── CONTRIBUTING.md # Contribution Guidelines
 │
 ├── data/
 │ ├── user_feedback.csv # Current User Feedback
@@ -52,6 +62,8 @@ ShopShield-AI/
 └── url_phishing_model.pkl # Trained ML Model
 
 text
+
+---
 
 ## Installation
 
