@@ -61,8 +61,6 @@ ShopShield-AI/
 └── models/
 └── url_phishing_model.pkl # Trained ML Model
 
-text
-
 ---
 
 ## Installation
