@@ -346,37 +346,36 @@ with st.sidebar:
     
     st.markdown("### Input Analysis")
     
-    url_input = st.text_input(
-        "Website URL",
-        placeholder="https://example.com",
-        key="url_input_main",
-        value=st.session_state.get('url_input_main', '')
-    )
+    with st.form(key="analysis_form"):
+        url_input = st.text_input(
+            "Website URL",
+            placeholder="https://example.com",
+            key="url_input_main",
+            value=""
+        )
 
-    text_input = st.text_area(
-        "Website Content",
-        height=120,
-        placeholder="Paste website text for dark pattern detection...",
-        key="text_input_main",
-        value=st.session_state.get('text_input_main', '')
-    )
-
-    analyze = st.button("Analyze", width="stretch", key="analyze_btn")
-    
-    if analyze:
-        has_url = url_input.strip()
-        has_text = text_input.strip()
-        if not has_url and not has_text:
-            st.warning("Please enter a URL or paste website content.")
-        else:
-            st.session_state.current_url = url_input if has_url else ""
-            st.session_state.current_text = text_input if has_text else ""
-            st.session_state.show_results = True
-            st.session_state.feedback_given = False
-            st.session_state.analyzed_url = url_input if has_url else ""
-            st.session_state.url_input_main = ""
-            st.session_state.text_input_main = ""
-            st.rerun()
+        text_input = st.text_area(
+            "Website Content",
+            height=120,
+            placeholder="Paste website text for dark pattern detection...",
+            key="text_input_main",
+            value=""
+        )
+        
+        submitted = st.form_submit_button("Analyze", width="stretch")
+        
+        if submitted:
+            has_url = url_input.strip()
+            has_text = text_input.strip()
+            if not has_url and not has_text:
+                st.warning("Please enter a URL or paste website content.")
+            else:
+                st.session_state.current_url = url_input if has_url else ""
+                st.session_state.current_text = text_input if has_text else ""
+                st.session_state.show_results = True
+                st.session_state.feedback_given = False
+                st.session_state.analyzed_url = url_input if has_url else ""
+                st.rerun()
 
     st.divider()
     
