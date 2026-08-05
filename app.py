@@ -12,7 +12,7 @@ import time
 
 st.set_page_config(
     page_title="ShopShield AI",
-    page_icon="\uD83D\uDEE1\uFE0F",
+    page_icon="🛡️",
     layout="wide"
 )
 
@@ -333,12 +333,12 @@ with st.sidebar:
     
     col_nav1, col_nav2 = st.columns(2)
     with col_nav1:
-        if st.button("Analyzer", use_container_width=True):
+        if st.button("Analyzer", width="stretch"):
             st.session_state.page = 'main'
             st.session_state.show_results = False
             st.rerun()
     with col_nav2:
-        if st.button("Admin", use_container_width=True):
+        if st.button("Admin", width="stretch"):
             st.session_state.page = 'admin'
             st.rerun()
     
@@ -361,7 +361,7 @@ with st.sidebar:
         value=st.session_state.get('text_input_main', '')
     )
 
-    analyze = st.button("Analyze", use_container_width=True, key="analyze_btn")
+    analyze = st.button("Analyze", width="stretch", key="analyze_btn")
     
     if analyze:
         has_url = url_input.strip()
@@ -417,7 +417,7 @@ if st.session_state.page == 'main':
         with col1:
             st.markdown("""
             <div class="feature-card">
-                <div class="icon">\uD83D\uDD17</div>
+                <div class="icon">🔗</div>
                 <h4>URL Analysis</h4>
                 <p>Detects phishing URLs using ML + heuristic analysis</p>
             </div>
@@ -425,7 +425,7 @@ if st.session_state.page == 'main':
         with col2:
             st.markdown("""
             <div class="feature-card">
-                <div class="icon">\uD83C\uDFAD</div>
+                <div class="icon">🎭</div>
                 <h4>Dark Pattern Detection</h4>
                 <p>Identifies deceptive UX patterns like urgency, social proof</p>
             </div>
@@ -433,7 +433,7 @@ if st.session_state.page == 'main':
         with col3:
             st.markdown("""
             <div class="feature-card">
-                <div class="icon">\uD83E\uDDE0</div>
+                <div class="icon">🧠</div>
                 <h4>Self-Learning</h4>
                 <p>Continuously improves from user feedback</p>
             </div>
@@ -654,7 +654,7 @@ if st.session_state.page == 'main':
 
             col1, col2, col3 = st.columns(3)
             with col1:
-                if st.button("Yes - Safe", use_container_width=True, key="feedback_safe"):
+                if st.button("Yes - Safe", width="stretch", key="feedback_safe"):
                     if save_feedback(current_url, risk, "safe"):
                         st.session_state.feedback_given = True
                         st.session_state.feedback_success = True
@@ -662,7 +662,7 @@ if st.session_state.page == 'main':
                         st.session_state.auto_retrain_done = False
                         st.rerun()
             with col2:
-                if st.button("Yes - Phishing", use_container_width=True, key="feedback_phishing"):
+                if st.button("Yes - Phishing", width="stretch", key="feedback_phishing"):
                     if save_feedback(current_url, risk, "phishing"):
                         st.session_state.feedback_given = True
                         st.session_state.feedback_success = True
@@ -670,7 +670,7 @@ if st.session_state.page == 'main':
                         st.session_state.auto_retrain_done = False
                         st.rerun()
             with col3:
-                if st.button("Not Sure", use_container_width=True, key="feedback_uncertain"):
+                if st.button("Not Sure", width="stretch", key="feedback_uncertain"):
                     if save_feedback(current_url, risk, "uncertain"):
                         st.session_state.feedback_given = True
                         st.session_state.feedback_success = True
@@ -681,7 +681,7 @@ if st.session_state.page == 'main':
             st.success("Thank you for your feedback! You can analyze a new URL to provide more feedback.")
             st.info("Enter a new URL and click Analyze to check another website.")
 
-        if st.button("New Analysis", use_container_width=True):
+        if st.button("New Analysis", width="stretch"):
             st.session_state.show_results = False
             st.session_state.current_url = ""
             st.session_state.current_text = ""
@@ -709,7 +709,7 @@ else:
             username = st.text_input("Username", placeholder="Enter username", key="admin_user")
             password = st.text_input("Password", type="password", placeholder="Enter password", key="admin_pass")
 
-            if st.button("Login", use_container_width=True, key="admin_login"):
+            if st.button("Login", width="stretch", key="admin_login"):
                 if username == "admin" and password == "ShopShield2024!":
                     st.session_state.admin_logged_in = True
                     st.session_state.admin_username = username
@@ -802,7 +802,7 @@ else:
         with st.sidebar:
             st.markdown("### Admin Controls")
             
-            if st.button("Dashboard", use_container_width=True):
+            if st.button("Dashboard", width="stretch"):
                 st.rerun()
             
             st.divider()
@@ -816,7 +816,7 @@ else:
             st.divider()
             
             st.markdown("### Model Management")
-            if st.button("Force Retrain (Manual)", use_container_width=True):
+            if st.button("Force Retrain (Manual)", width="stretch"):
                 with st.spinner("Retraining model..."):
                     try:
                         if auto_retrain(min_samples=1, force=True):

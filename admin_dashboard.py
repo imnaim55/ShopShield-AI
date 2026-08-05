@@ -14,7 +14,7 @@ from url_analyzer import get_model_info
 
 st.set_page_config(
     page_title="Admin Dashboard - ShopShield AI",
-    page_icon="\uD83D\uDEE1\uFE0F",
+    page_icon="🛡️",
     layout="wide"
 )
 
@@ -78,11 +78,6 @@ st.markdown("""
         background: #ff980020;
         color: #ff9800;
         border: 1px solid #ff980040;
-    }
-    .status-badge.danger {
-        background: #dc354520;
-        color: #dc3545;
-        border: 1px solid #dc354540;
     }
     .section-title {
         font-size: 1.4rem;
@@ -166,7 +161,7 @@ def login_page():
         username = st.text_input("Username", placeholder="Enter username", key="login_user")
         password = st.text_input("Password", type="password", placeholder="Enter password", key="login_pass")
         
-        if st.button("Login", use_container_width=True):
+        if st.button("Login", width="stretch"):
             if username == "admin" and password == "ShopShield2024!":
                 st.session_state.admin_logged_in = True
                 st.session_state.admin_username = username
@@ -197,13 +192,13 @@ with st.sidebar:
     st.markdown('<div class="sidebar-admin">', unsafe_allow_html=True)
     st.markdown("""
     <div class="user-info">
-        <div style="font-size:2rem;">\uD83D\uDC64</div>
+        <div style="font-size:2rem;">👤</div>
         <div style="font-weight:600;">Admin</div>
         <div style="font-size:0.8rem;color:#888;">Logged in</div>
     </div>
     """, unsafe_allow_html=True)
     
-    if st.button("Logout", use_container_width=True):
+    if st.button("Logout", width="stretch"):
         st.session_state.admin_logged_in = False
         st.rerun()
     
@@ -220,7 +215,7 @@ with st.sidebar:
     
     st.divider()
     
-    if st.button("Force Retrain", use_container_width=True):
+    if st.button("Force Retrain", width="stretch"):
         with st.spinner("Retraining model..."):
             try:
                 success = auto_retrain(min_samples=1, force=True)
