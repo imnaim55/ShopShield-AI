@@ -14,11 +14,133 @@ from url_analyzer import get_model_info
 
 st.set_page_config(
     page_title="Admin Dashboard - ShopShield AI",
-    page_icon="",
+    page_icon="\uD83D\uDEE1\uFE0F",
     layout="wide"
 )
 
-# Session State
+st.markdown("""
+<style>
+    .admin-header {
+        background: linear-gradient(135deg, #1a1a2e, #16213e);
+        padding: 1.5rem 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        color: white;
+    }
+    .admin-header h1 {
+        font-size: 2.2rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #00d2ff, #3a7bd5);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0;
+    }
+    .admin-header p {
+        color: #a0aec0;
+        margin: 0;
+    }
+    .admin-metric {
+        background: var(--secondary-background-color);
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        text-align: center;
+        transition: all 0.3s;
+    }
+    .admin-metric:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .admin-metric .label {
+        font-size: 0.85rem;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .admin-metric .value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-top: 4px;
+    }
+    .status-badge {
+        display: inline-block;
+        padding: 4px 14px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    .status-badge.success {
+        background: #28a74520;
+        color: #28a745;
+        border: 1px solid #28a74540;
+    }
+    .status-badge.warning {
+        background: #ff980020;
+        color: #ff9800;
+        border: 1px solid #ff980040;
+    }
+    .status-badge.danger {
+        background: #dc354520;
+        color: #dc3545;
+        border: 1px solid #dc354540;
+    }
+    .section-title {
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin: 1.5rem 0 1rem 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 3px solid #3a7bd5;
+        display: inline-block;
+    }
+    .footer {
+        text-align: center;
+        padding: 2rem 0 1rem 0;
+        color: #888;
+        font-size: 0.9rem;
+        border-top: 1px solid var(--border-color);
+        margin-top: 2rem;
+    }
+    .login-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 20px;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+    .login-container h1 {
+        font-size: 2.8rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #00d2ff, #3a7bd5);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-align: center;
+        margin-bottom: 5px;
+    }
+    .login-container p {
+        text-align: center;
+        color: #888;
+        font-size: 1.1rem;
+        margin-bottom: 30px;
+    }
+    .login-container hr {
+        margin: 20px 0 30px 0;
+        width: 100%;
+    }
+    .sidebar-admin {
+        padding: 1rem 0;
+    }
+    .sidebar-admin .user-info {
+        text-align: center;
+        padding: 10px;
+        background: var(--secondary-background-color);
+        border-radius: 10px;
+        margin-bottom: 1rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 if 'admin_logged_in' not in st.session_state:
     st.session_state.admin_logged_in = False
 if 'retrain_success_time' not in st.session_state:
@@ -31,15 +153,20 @@ def get_indian_time():
 
 
 def login_page():
-    st.title("Admin Login")
+    st.markdown("""
+    <div class="login-container">
+        <h1>Admin Login</h1>
+        <p>Enter your credentials to access the admin dashboard.</p>
+        <hr>
+    </div>
+    """, unsafe_allow_html=True)
+    
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
-        st.markdown("---")
-        username = st.text_input("Username", placeholder="Enter username")
-        password = st.text_input("Password", type="password", placeholder="Enter password")
+        username = st.text_input("Username", placeholder="Enter username", key="login_user")
+        password = st.text_input("Password", type="password", placeholder="Enter password", key="login_pass")
         
         if st.button("Login", use_container_width=True):
-            # Hardcoded authentication (no external file needed)
             if username == "admin" and password == "ShopShield2024!":
                 st.session_state.admin_logged_in = True
                 st.session_state.admin_username = username
@@ -48,20 +175,48 @@ def login_page():
                 st.error("Invalid credentials")
 
 
-# Show login page if not logged in
 if not st.session_state.admin_logged_in:
     login_page()
     st.stop()
 
-# Main Dashboard (only visible after login)
-st.title("Admin Dashboard")
+st.markdown("""
+<div class="admin-header">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+            <h1>Admin Dashboard</h1>
+            <p>Monitor feedback, manage model retraining, and view analytics</p>
+        </div>
+        <div style="text-align:right;">
+            <span style="color:#a0aec0;">admin</span>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-# Sidebar
 with st.sidebar:
-    st.write(f"Logged in as: admin")
+    st.markdown('<div class="sidebar-admin">', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="user-info">
+        <div style="font-size:2rem;">\uD83D\uDC64</div>
+        <div style="font-weight:600;">Admin</div>
+        <div style="font-size:0.8rem;color:#888;">Logged in</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
     if st.button("Logout", use_container_width=True):
         st.session_state.admin_logged_in = False
         st.rerun()
+    
+    st.divider()
+    
+    st.markdown("### Model Management")
+    
+    feedback_count = get_feedback_count()
+    if feedback_count >= 5:
+        st.success("Auto-retraining ready")
+        st.info(f"{feedback_count} feedback entries available")
+    else:
+        st.info(f"{feedback_count}/5 feedback needed for auto-retrain")
     
     st.divider()
     
@@ -79,16 +234,40 @@ with st.sidebar:
                     st.error("Retraining failed. Check logs.")
             except Exception as e:
                 st.error(f"Error: {str(e)}")
+    
+    st.divider()
+    st.caption("ShopShield AI v1.0")
+    st.caption("Developed by Naim Shaikh")
 
-# Metrics
 feedback_count = get_feedback_count()
 col1, col2, col3 = st.columns(3)
+
 with col1:
-    st.metric("Current Feedback", feedback_count)
+    st.markdown(f"""
+    <div class="admin-metric">
+        <div class="label">Current Feedback</div>
+        <div class="value">{feedback_count}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
 with col2:
-    st.metric("Ready for Retraining", "Yes" if feedback_count >= 5 else "No")
+    status_class = "success" if feedback_count >= 5 else "warning"
+    status_text = "Yes" if feedback_count >= 5 else "No"
+    st.markdown(f"""
+    <div class="admin-metric">
+        <div class="label">Ready for Retraining</div>
+        <div class="value"><span class="status-badge {status_class}">{status_text}</span></div>
+    </div>
+    """, unsafe_allow_html=True)
+
 with col3:
-    st.metric("Last Retrain", st.session_state.retrain_success_time or "Never")
+    last_train = st.session_state.retrain_success_time or "Never"
+    st.markdown(f"""
+    <div class="admin-metric">
+        <div class="label">Last Retrain</div>
+        <div class="value" style="font-size:1.2rem;">{last_train}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 if feedback_count >= 5:
     st.success(f"{feedback_count} feedback entries ready for retraining")
@@ -99,39 +278,61 @@ else:
 
 st.divider()
 
-st.subheader("Current Feedback")
-df_feedback = get_feedback()
-if not df_feedback.empty:
-    st.dataframe(df_feedback.tail(10), use_container_width=True)
-    st.caption(f"Showing last 10 of {len(df_feedback)} entries")
-else:
-    st.info("No feedback collected yet")
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown('<div class="section-title">Current Feedback</div>', unsafe_allow_html=True)
+    df_feedback = get_feedback()
+    if not df_feedback.empty:
+        st.dataframe(df_feedback.tail(10), use_container_width=True)
+        st.caption(f"Showing last 10 of {len(df_feedback)} entries")
+    else:
+        st.info("No feedback collected yet")
+
+with col2:
+    st.markdown('<div class="section-title">Archived Feedback</div>', unsafe_allow_html=True)
+    df_archive = get_archive_feedback()
+    if not df_archive.empty:
+        st.dataframe(df_archive.tail(10), use_container_width=True)
+        st.caption(f"Showing last 10 of {len(df_archive)} archived entries")
+    else:
+        st.info("No archived feedback")
 
 st.divider()
 
-st.subheader("Archived Feedback")
-df_archive = get_archive_feedback()
-if not df_archive.empty:
-    st.dataframe(df_archive.tail(10), use_container_width=True)
-    st.caption(f"Showing last 10 of {len(df_archive)} archived entries")
-else:
-    st.info("No archived feedback")
-
-st.divider()
-
-st.subheader("Model Information")
+st.markdown('<div class="section-title">Model Information</div>', unsafe_allow_html=True)
 model_info = get_model_info()
-if model_info.get('status') == 'Loaded':
-    col1, col2, col3 = st.columns(3)
+if model_info and model_info.get('status') == 'Loaded':
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Status", "Active")
-        st.metric("Type", model_info.get('type', 'Random Forest'))
+        st.markdown(f"""
+        <div class="admin-metric">
+            <div class="label">Status</div>
+            <div class="value" style="color:#28a745;font-size:1.3rem;">Active</div>
+        </div>
+        """, unsafe_allow_html=True)
     with col2:
-        st.metric("Features", model_info.get('features', 'N/A'))
-        st.metric("Trees", model_info.get('trees', 'N/A'))
+        st.markdown(f"""
+        <div class="admin-metric">
+            <div class="label">Type</div>
+            <div class="value" style="font-size:1.1rem;">{model_info.get('type', 'Random Forest')}</div>
+        </div>
+        """, unsafe_allow_html=True)
     with col3:
-        st.metric("Classes", str(model_info.get('classes', 'N/A')))
+        st.markdown(f"""
+        <div class="admin-metric">
+            <div class="label">Features</div>
+            <div class="value" style="font-size:1.1rem;">{model_info.get('features', 'N/A')}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col4:
+        st.markdown(f"""
+        <div class="admin-metric">
+            <div class="label">Trees</div>
+            <div class="value" style="font-size:1.1rem;">{model_info.get('trees', 'N/A')}</div>
+        </div>
+        """, unsafe_allow_html=True)
 else:
     st.warning("Model is not loaded. Check your model file.")
 
-st.caption("Developed by Naim Shaikh")
+st.markdown('<div class="footer">Developed by Naim Shaikh</div>', unsafe_allow_html=True)

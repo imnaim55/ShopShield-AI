@@ -9,53 +9,208 @@ from domain_analyzer import get_domain_summary, is_new_domain
 from ssl_analyzer import get_ssl_summary
 import streamlit as st
 import time
-import re
 
 st.set_page_config(
     page_title="ShopShield AI",
-    page_icon="",
+    page_icon="\uD83D\uDEE1\uFE0F",
     layout="wide"
 )
 
 st.markdown("""
 <style>
-.risk-box {
-    padding: 18px;
-    border-radius: 12px;
-    color: white;
-    font-size: 22px;
-    text-align: center;
-    font-weight: bold;
-    margin: 10px 0;
-}
-.dark-pattern-high {
-    background-color: #dc3545;
-    color: white;
-    padding: 10px;
-    border-radius: 8px;
-    margin: 5px 0;
-}
-.dark-pattern-medium {
-    background-color: #ff9800;
-    color: white;
-    padding: 10px;
-    border-radius: 8px;
-    margin: 5px 0;
-}
-.dark-pattern-low {
-    background-color: #ffc107;
-    color: #333;
-    padding: 10px;
-    border-radius: 8px;
-    margin: 5px 0;
-}
-.metric-card {
-    background: var(--secondary-background-color);
-    padding: 15px;
-    border-radius: 10px;
-    border: 1px solid var(--border-color);
-    text-align: center;
-}
+    .main-header {
+        text-align: center;
+        padding: 1.2rem 0;
+        background: linear-gradient(135deg, #1a1a2e, #16213e);
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        color: white;
+    }
+    .main-header h1 {
+        font-size: 2.8rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #00d2ff, #3a7bd5);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0;
+    }
+    .main-header p {
+        color: #a0aec0;
+        font-size: 1.1rem;
+        margin-top: 0.3rem;
+    }
+    .risk-box {
+        padding: 20px 25px;
+        border-radius: 14px;
+        color: white;
+        font-size: 24px;
+        text-align: center;
+        font-weight: bold;
+        margin: 10px 0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        transition: transform 0.2s;
+    }
+    .risk-box:hover {
+        transform: scale(1.01);
+    }
+    .dark-pattern-high {
+        background: linear-gradient(135deg, #dc3545, #c0392b);
+        color: white;
+        padding: 12px 16px;
+        border-radius: 10px;
+        margin: 6px 0;
+        border-left: 4px solid #ff6b6b;
+    }
+    .dark-pattern-medium {
+        background: linear-gradient(135deg, #ff9800, #e67e22);
+        color: white;
+        padding: 12px 16px;
+        border-radius: 10px;
+        margin: 6px 0;
+        border-left: 4px solid #ffd93d;
+    }
+    .dark-pattern-low {
+        background: linear-gradient(135deg, #ffc107, #f39c12);
+        color: #333;
+        padding: 12px 16px;
+        border-radius: 10px;
+        margin: 6px 0;
+        border-left: 4px solid #ffeb3b;
+    }
+    .metric-card {
+        background: var(--secondary-background-color);
+        padding: 18px 20px;
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        text-align: center;
+        transition: all 0.3s;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .metric-card:hover {
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .metric-card .label {
+        font-size: 0.9rem;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .metric-card .value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-top: 4px;
+    }
+    .sidebar-title {
+        text-align: center;
+        font-size: 1.8rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #00d2ff, #3a7bd5);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+    }
+    .sidebar-subtitle {
+        text-align: center;
+        color: #888;
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+    }
+    .feedback-section {
+        background: linear-gradient(135deg, #1a1a2e, #16213e);
+        padding: 20px 25px;
+        border-radius: 12px;
+        margin: 20px 0;
+        color: white;
+    }
+    .feedback-section h3 {
+        color: #fff;
+        margin-bottom: 10px;
+    }
+    .feedback-section p {
+        color: #a0aec0;
+    }
+    .feature-card {
+        background: var(--secondary-background-color);
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        text-align: center;
+        transition: all 0.3s;
+        height: 100%;
+    }
+    .feature-card:hover {
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        transform: translateY(-3px);
+    }
+    .feature-card .icon {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+    }
+    .feature-card h4 {
+        margin-bottom: 8px;
+    }
+    .feature-card p {
+        color: #888;
+        font-size: 0.9rem;
+    }
+    .stButton > button {
+        border-radius: 10px;
+        font-weight: 500;
+        transition: all 0.3s;
+    }
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .section-header {
+        font-size: 1.6rem;
+        font-weight: 600;
+        margin: 1.5rem 0 1rem 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 3px solid #3a7bd5;
+        display: inline-block;
+    }
+    .stProgress > div > div {
+        background: linear-gradient(135deg, #00d2ff, #3a7bd5) !important;
+        border-radius: 10px;
+    }
+    .footer {
+        text-align: center;
+        padding: 2rem 0 1rem 0;
+        color: #888;
+        font-size: 0.9rem;
+        border-top: 1px solid var(--border-color);
+        margin-top: 2rem;
+    }
+    .login-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 20px;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+    .login-container h1 {
+        font-size: 2.8rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #00d2ff, #3a7bd5);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-align: center;
+        margin-bottom: 5px;
+    }
+    .login-container p {
+        text-align: center;
+        color: #888;
+        font-size: 1.1rem;
+        margin-bottom: 30px;
+    }
+    .login-container hr {
+        margin: 20px 0 30px 0;
+        width: 100%;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -79,6 +234,10 @@ if 'auto_retrain_done' not in st.session_state:
     st.session_state.auto_retrain_done = False
 if 'is_dark_pattern_only' not in st.session_state:
     st.session_state.is_dark_pattern_only = False
+if 'feedback_given' not in st.session_state:
+    st.session_state.feedback_given = False
+if 'analyzed_url' not in st.session_state:
+    st.session_state.analyzed_url = ""
 
 
 def analyze_url(url):
@@ -167,19 +326,26 @@ def analyze_dark_patterns(text):
 
 
 with st.sidebar:
-    st.title("ShopShield AI")
-
-    if st.button("URL Analyzer", use_container_width=True):
-        st.session_state.page = 'main'
-        st.session_state.show_results = False
-        st.rerun()
-
-    if st.button("Admin Dashboard", use_container_width=True):
-        st.session_state.page = 'admin'
-        st.rerun()
-
+    st.markdown('<div class="sidebar-title">ShopShield AI</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-subtitle">AI-Powered Phishing Detection</div>', unsafe_allow_html=True)
+    
     st.divider()
-
+    
+    col_nav1, col_nav2 = st.columns(2)
+    with col_nav1:
+        if st.button("Analyzer", use_container_width=True):
+            st.session_state.page = 'main'
+            st.session_state.show_results = False
+            st.rerun()
+    with col_nav2:
+        if st.button("Admin", use_container_width=True):
+            st.session_state.page = 'admin'
+            st.rerun()
+    
+    st.divider()
+    
+    st.markdown("### Input Analysis")
+    
     url_input = st.text_input(
         "Website URL",
         placeholder="https://example.com",
@@ -189,14 +355,14 @@ with st.sidebar:
 
     text_input = st.text_area(
         "Website Content",
-        height=150,
+        height=120,
         placeholder="Paste website text for dark pattern detection...",
         key="text_input_main",
         value=st.session_state.get('text_input_main', '')
     )
 
     analyze = st.button("Analyze", use_container_width=True, key="analyze_btn")
-
+    
     if analyze:
         has_url = url_input.strip()
         has_text = text_input.strip()
@@ -206,40 +372,85 @@ with st.sidebar:
             st.session_state.current_url = url_input if has_url else ""
             st.session_state.current_text = text_input if has_text else ""
             st.session_state.show_results = True
+            st.session_state.feedback_given = False
+            st.session_state.analyzed_url = url_input if has_url else ""
+            st.session_state.url_input_main = ""
+            st.session_state.text_input_main = ""
             st.rerun()
 
     st.divider()
+    
+    st.markdown("### Status")
     feedback_count = get_feedback_count()
-    st.caption(f"Feedback entries: {feedback_count}")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Feedback", feedback_count)
+    with col2:
+        if feedback_count >= 5:
+            st.success("Ready")
+        else:
+            st.info(f"{feedback_count}/5")
+    
     if feedback_count >= 5:
         st.success("Auto-retraining ready")
+    
     st.caption("Detects phishing using ML + heuristics")
+    st.caption("Developed by Naim Shaikh")
 
 
 if st.session_state.page == 'main':
     if not st.session_state.show_results:
-        st.title("ShopShield AI")
-        st.subheader("AI-Powered Phishing Detection")
-        st.write("Enter a URL or paste website content in the sidebar to analyze.")
-
+        st.markdown("""
+        <div class="main-header">
+            <h1>ShopShield AI</h1>
+            <p>AI-Powered Phishing Detection & Dark Pattern Analysis</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <p style="text-align:center;font-size:1.1rem;color:#888;margin-bottom:2rem;">
+            Enter a URL or paste website content in the sidebar to analyze for phishing and deceptive patterns.
+        </p>
+        """, unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown("""
+            <div class="feature-card">
+                <div class="icon">\uD83D\uDD17</div>
+                <h4>URL Analysis</h4>
+                <p>Detects phishing URLs using ML + heuristic analysis</p>
+            </div>
+            """, unsafe_allow_html=True)
+        with col2:
+            st.markdown("""
+            <div class="feature-card">
+                <div class="icon">\uD83C\uDFAD</div>
+                <h4>Dark Pattern Detection</h4>
+                <p>Identifies deceptive UX patterns like urgency, social proof</p>
+            </div>
+            """, unsafe_allow_html=True)
+        with col3:
+            st.markdown("""
+            <div class="feature-card">
+                <div class="icon">\uD83E\uDDE0</div>
+                <h4>Self-Learning</h4>
+                <p>Continuously improves from user feedback</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.divider()
+        
+        st.markdown("### Example URLs to Test")
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown("URL Analysis")
-            st.caption("Check if a website is phishing")
-            st.code("http://103.20.213.34:8080/free-shop-login")
+            st.code("http://103.20.213.34:8080/free-shop-login", language="text")
+            st.code("http://192.168.1.1/login", language="text")
         with col2:
-            st.markdown("Dark Pattern Analysis")
-            st.caption("Detect deceptive website tactics")
-            st.code("Hurry! Limited time offer! Buy now!")
-
-        with st.expander("Example URLs to Test"):
-            st.code("http://103.20.213.34:8080/free-shop-login")
-            st.code("http://192.168.1.1/login")
-            st.code("https://secure-paypal-verify.xyz")
-            st.code("https://www.amazon.com")
-            st.code("https://www.google.com")
-
-        st.caption("Developed by Naim Shaikh")
+            st.code("https://secure-paypal-verify.xyz", language="text")
+            st.code("https://www.amazon.com", language="text")
+        
+        st.markdown('<div class="footer">Developed by Naim Shaikh</div>', unsafe_allow_html=True)
 
     if st.session_state.show_results:
         current_url = st.session_state.get('current_url', '')
@@ -253,6 +464,12 @@ if st.session_state.page == 'main':
                 st.session_state.show_results = False
                 st.rerun()
             st.stop()
+
+        st.markdown("""
+        <div class="main-header" style="padding:0.8rem 0;margin-bottom:1.5rem;">
+            <h1 style="font-size:2rem;">Security Analysis Report</h1>
+        </div>
+        """, unsafe_allow_html=True)
 
         if has_url:
             with st.spinner("Analyzing URL..."):
@@ -271,28 +488,72 @@ if st.session_state.page == 'main':
             else:
                 risk_level, verdict, color = "High", "Phishing Detected", "#dc3545"
 
-            st.title("Security Analysis Report")
             col1, col2, col3 = st.columns(3)
-            col1.metric("Phishing Risk", f"{risk:.2f}%")
-            col2.metric("Risk Level", risk_level)
-            col3.metric("Verdict", verdict)
+            with col1:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="label">Phishing Risk</div>
+                    <div class="value" style="color:{color}">{risk:.2f}%</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col2:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="label">Risk Level</div>
+                    <div class="value" style="color:{color}">{risk_level}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col3:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="label">Verdict</div>
+                    <div class="value" style="color:{color}">{verdict}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
             st.progress(int(risk))
             st.markdown(f'<div class="risk-box" style="background:{color}">Overall Risk: {risk:.2f}%</div>', unsafe_allow_html=True)
 
             st.divider()
-            st.subheader("URL Details")
-            st.code(current_url)
-
+            
+            st.markdown("### URL Details")
+            st.code(current_url, language="text")
+            
             col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Length", len(current_url))
-            col2.metric("HTTPS", "Yes" if current_url.startswith("https://") else "No")
-            col3.metric("Hyphens", current_url.count("-"))
-            col4.metric("Dots", current_url.count("."))
-
+            with col1:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="label">Length</div>
+                    <div class="value" style="font-size:1.3rem;">{len(current_url)}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col2:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="label">HTTPS</div>
+                    <div class="value" style="font-size:1.3rem;color:{'#28a745' if current_url.startswith('https://') else '#dc3545'}">
+                        {'Yes' if current_url.startswith('https://') else 'No'}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col3:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="label">Hyphens</div>
+                    <div class="value" style="font-size:1.3rem;">{current_url.count('-')}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col4:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="label">Dots</div>
+                    <div class="value" style="font-size:1.3rem;">{current_url.count('.')}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
             st.divider()
 
-        st.subheader("Dark Pattern Analysis")
+        st.markdown("### Dark Pattern Analysis")
 
         if not has_text:
             if has_url:
@@ -304,15 +565,31 @@ if st.session_state.page == 'main':
 
             if found_patterns:
                 st.error("Dark Patterns Detected")
+                
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.markdown(f'<div class="metric-card"><strong>Total Score</strong><br><span style="font-size:24px;">{total_score}</span></div>', unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div class="label">Total Score</div>
+                        <div class="value" style="font-size:1.8rem;color:#ff6b6b;">{total_score}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
                 with col2:
-                    st.markdown(f'<div class="metric-card"><strong>High Severity</strong><br><span style="font-size:24px;color:#dc3545;">{severity_counts["high"]}</span></div>', unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div class="label">High Severity</div>
+                        <div class="value" style="font-size:1.8rem;color:#dc3545;">{severity_counts["high"]}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
                 with col3:
-                    st.markdown(f'<div class="metric-card"><strong>Medium Severity</strong><br><span style="font-size:24px;color:#ff9800;">{severity_counts["medium"]}</span></div>', unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div class="label">Medium Severity</div>
+                        <div class="value" style="font-size:1.8rem;color:#ff9800;">{severity_counts["medium"]}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-                st.write("Detailed Analysis:")
+                st.markdown("#### Detailed Analysis:")
                 for category, data in found_patterns.items():
                     severity_class = "dark-pattern-high" if data["severity"] == "high" else "dark-pattern-medium" if data["severity"] == "medium" else "dark-pattern-low"
                     severity_label = "HIGH" if data["severity"] == "high" else "MEDIUM" if data["severity"] == "medium" else "LOW"
@@ -334,11 +611,11 @@ if st.session_state.page == 'main':
 
         if has_url:
             st.divider()
-            st.subheader("Detailed URL Analysis")
+            st.markdown("### Additional Analysis")
             
             col1, col2 = st.columns(2)
             with col1:
-                st.markdown("Domain Information")
+                st.markdown("#### Domain Information")
                 domain_info = get_domain_summary(current_url)
                 st.info(domain_info)
                 
@@ -348,7 +625,7 @@ if st.session_state.page == 'main':
                     st.success("This domain has been established for some time")
             
             with col2:
-                st.markdown("SSL Certificate Information")
+                st.markdown("#### SSL Certificate")
                 ssl_info = get_ssl_summary(current_url)
                 if "Not installed" in ssl_info:
                     st.error(ssl_info)
@@ -359,9 +636,14 @@ if st.session_state.page == 'main':
                 else:
                     st.success(ssl_info)
 
+        if has_url and not st.session_state.feedback_given:
             st.divider()
-            st.subheader("Help Improve ShopShield AI")
-            st.write("Was this analysis correct? Your feedback helps train the model.")
+            st.markdown("""
+            <div class="feedback-section">
+                <h3>Help Improve ShopShield AI</h3>
+                <p>Was this analysis correct? Your feedback helps train the model.</p>
+            </div>
+            """, unsafe_allow_html=True)
 
             if st.session_state.feedback_success:
                 if st.session_state.feedback_success:
@@ -372,26 +654,32 @@ if st.session_state.page == 'main':
 
             col1, col2, col3 = st.columns(3)
             with col1:
-                if st.button("Yes - Safe", use_container_width=True):
+                if st.button("Yes - Safe", use_container_width=True, key="feedback_safe"):
                     if save_feedback(current_url, risk, "safe"):
+                        st.session_state.feedback_given = True
                         st.session_state.feedback_success = True
-                        st.session_state.feedback_message = "Thank you for your feedback!"
+                        st.session_state.feedback_message = "Thank you for your feedback! The model will learn from this."
                         st.session_state.auto_retrain_done = False
                         st.rerun()
             with col2:
-                if st.button("Yes - Phishing", use_container_width=True):
+                if st.button("Yes - Phishing", use_container_width=True, key="feedback_phishing"):
                     if save_feedback(current_url, risk, "phishing"):
+                        st.session_state.feedback_given = True
                         st.session_state.feedback_success = True
-                        st.session_state.feedback_message = "Thank you for your feedback!"
+                        st.session_state.feedback_message = "Thank you for your feedback! The model will learn from this."
                         st.session_state.auto_retrain_done = False
                         st.rerun()
             with col3:
-                if st.button("Not Sure", use_container_width=True):
+                if st.button("Not Sure", use_container_width=True, key="feedback_uncertain"):
                     if save_feedback(current_url, risk, "uncertain"):
+                        st.session_state.feedback_given = True
                         st.session_state.feedback_success = True
                         st.session_state.feedback_message = "Feedback recorded as uncertain."
                         st.session_state.auto_retrain_done = False
                         st.rerun()
+        elif has_url and st.session_state.feedback_given:
+            st.success("Thank you for your feedback! You can analyze a new URL to provide more feedback.")
+            st.info("Enter a new URL and click Analyze to check another website.")
 
         if st.button("New Analysis", use_container_width=True):
             st.session_state.show_results = False
@@ -399,57 +687,21 @@ if st.session_state.page == 'main':
             st.session_state.current_text = ""
             st.session_state.risk_score = None
             st.session_state.feedback_success = None
+            st.session_state.feedback_given = False
+            st.session_state.analyzed_url = ""
             st.rerun()
 
-        st.caption("Developed by Naim Shaikh")
+        st.markdown('<div class="footer">Developed by Naim Shaikh</div>', unsafe_allow_html=True)
 
 
 else:
     if not st.session_state.admin_logged_in:
-        # Centered Admin Login Page
         st.markdown("""
-            <style>
-            .login-container {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                padding: 40px 20px;
-                width: 100%;
-            }
-            .login-container h1 {
-                font-size: 2.5rem;
-                font-weight: 600;
-                margin-bottom: 10px;
-                text-align: center;
-                width: 100%;
-            }
-            .login-container p {
-                font-size: 1.1rem;
-                color: #666;
-                margin-top: 10px;
-                margin-bottom: 30px;
-                text-align: center;
-                width: 100%;
-            }
-            .login-container hr {
-                margin: 20px 0 30px 0;
-                border: 0;
-                border-top: 1px solid #e0e0e0;
-                width: 100%;
-            }
-            .stTextInput > div {
-                width: 100% !important;
-            }
-            .stButton > button {
-                width: 100% !important;
-            }
-            </style>
-            <div class="login-container">
-                <h1>Admin Login</h1>
-                <p>Enter your credentials to access the admin dashboard.</p>
-                <hr>
-            </div>
+        <div class="login-container">
+            <h1>Admin Login</h1>
+            <p>Enter your credentials to access the admin dashboard.</p>
+            <hr>
+        </div>
         """, unsafe_allow_html=True)
 
         col1, col2, col3 = st.columns([1, 1.5, 1])
@@ -470,21 +722,91 @@ else:
         from feedback_storage import get_feedback, get_archive_feedback
         from url_analyzer import get_model_info
         from datetime import datetime
-        import time
 
         if 'retrain_success_time' not in st.session_state:
             st.session_state.retrain_success_time = None
 
-        st.title("Admin Dashboard")
+        st.markdown("""
+        <style>
+        .admin-header {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            padding: 1.5rem 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            color: white;
+        }
+        .admin-header h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00d2ff, #3a7bd5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+        }
+        .admin-header p {
+            color: #a0aec0;
+            margin: 0;
+        }
+        .admin-metric {
+            background: var(--secondary-background-color);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+        .admin-metric .label {
+            font-size: 0.85rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .admin-metric .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .status-badge.success {
+            background: #28a74520;
+            color: #28a745;
+            border: 1px solid #28a74540;
+        }
+        .status-badge.warning {
+            background: #ff980020;
+            color: #ff9800;
+            border: 1px solid #ff980040;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <div class="admin-header">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <h1>Admin Dashboard</h1>
+                    <p>Monitor feedback, manage model retraining, and view analytics</p>
+                </div>
+                <div style="text-align:right;">
+                    <span style="color:#a0aec0;">admin</span>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         with st.sidebar:
-            st.write(f"Logged in as: admin")
-            if st.button("Logout", use_container_width=True):
-                st.session_state.admin_logged_in = False
+            st.markdown("### Admin Controls")
+            
+            if st.button("Dashboard", use_container_width=True):
                 st.rerun()
-
+            
             st.divider()
-
+            
             feedback_count = get_feedback_count()
             if feedback_count >= 5:
                 st.success("Auto-retraining will trigger on next page load")
@@ -492,7 +814,8 @@ else:
                 st.info(f"{feedback_count}/5 feedback needed for auto-retrain")
 
             st.divider()
-
+            
+            st.markdown("### Model Management")
             if st.button("Force Retrain (Manual)", use_container_width=True):
                 with st.spinner("Retraining model..."):
                     try:
@@ -510,11 +833,29 @@ else:
         feedback_count = get_feedback_count()
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Current Feedback", feedback_count)
+            st.markdown(f"""
+            <div class="admin-metric">
+                <div class="label">Current Feedback</div>
+                <div class="value">{feedback_count}</div>
+            </div>
+            """, unsafe_allow_html=True)
         with col2:
-            st.metric("Ready for Retraining", "Yes" if feedback_count >= 5 else "No")
+            status_class = "success" if feedback_count >= 5 else "warning"
+            status_text = "Ready" if feedback_count >= 5 else "Waiting"
+            st.markdown(f"""
+            <div class="admin-metric">
+                <div class="label">Retraining Status</div>
+                <div class="value"><span class="status-badge {status_class}">{status_text}</span></div>
+            </div>
+            """, unsafe_allow_html=True)
         with col3:
-            st.metric("Last Retrain", st.session_state.retrain_success_time or "Never")
+            last_train = st.session_state.retrain_success_time or "Never"
+            st.markdown(f"""
+            <div class="admin-metric">
+                <div class="label">Last Retrain</div>
+                <div class="value" style="font-size:1.2rem;">{last_train}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
         if feedback_count >= 5:
             st.success(f"{feedback_count} feedback entries ready for retraining!")
@@ -525,39 +866,61 @@ else:
 
         st.divider()
 
-        st.subheader("Current Feedback")
-        df_feedback = get_feedback()
-        if not df_feedback.empty:
-            st.dataframe(df_feedback.tail(10), use_container_width=True)
-            st.caption(f"Showing last 10 of {len(df_feedback)} entries")
-        else:
-            st.info("No feedback collected yet")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Current Feedback")
+            df_feedback = get_feedback()
+            if not df_feedback.empty:
+                st.dataframe(df_feedback.tail(10), use_container_width=True)
+                st.caption(f"Showing last 10 of {len(df_feedback)} entries")
+            else:
+                st.info("No feedback collected yet")
+
+        with col2:
+            st.markdown("### Archived Feedback")
+            df_archive = get_archive_feedback()
+            if not df_archive.empty:
+                st.dataframe(df_archive.tail(10), use_container_width=True)
+                st.caption(f"Showing last 10 of {len(df_archive)} archived entries")
+            else:
+                st.info("No archived feedback")
 
         st.divider()
 
-        st.subheader("Archived Feedback")
-        df_archive = get_archive_feedback()
-        if not df_archive.empty:
-            st.dataframe(df_archive.tail(10), use_container_width=True)
-            st.caption(f"Showing last 10 of {len(df_archive)} archived entries")
-        else:
-            st.info("No archived feedback")
-
-        st.divider()
-
-        st.subheader("Model Information")
+        st.markdown("### Model Information")
         model_info = get_model_info()
         if model_info and model_info.get('status') == 'Loaded':
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("Status", "Active")
-                st.metric("Type", model_info.get('type', 'Random Forest'))
+                st.markdown(f"""
+                <div class="admin-metric">
+                    <div class="label">Status</div>
+                    <div class="value" style="color:#28a745;font-size:1.3rem;">Active</div>
+                </div>
+                """, unsafe_allow_html=True)
             with col2:
-                st.metric("Features", model_info.get('features', 'N/A'))
-                st.metric("Trees", model_info.get('trees', 'N/A'))
+                st.markdown(f"""
+                <div class="admin-metric">
+                    <div class="label">Type</div>
+                    <div class="value" style="font-size:1.1rem;">{model_info.get('type', 'Random Forest')}</div>
+                </div>
+                """, unsafe_allow_html=True)
             with col3:
-                st.metric("Classes", str(model_info.get('classes', 'N/A')))
+                st.markdown(f"""
+                <div class="admin-metric">
+                    <div class="label">Features</div>
+                    <div class="value" style="font-size:1.1rem;">{model_info.get('features', 'N/A')}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col4:
+                st.markdown(f"""
+                <div class="admin-metric">
+                    <div class="label">Trees</div>
+                    <div class="value" style="font-size:1.1rem;">{model_info.get('trees', 'N/A')}</div>
+                </div>
+                """, unsafe_allow_html=True)
         else:
             st.warning("Model is not loaded. Check your model file.")
 
-        st.caption("Developed by Naim Shaikh")
+        st.markdown('<div class="footer">Developed by Naim Shaikh</div>', unsafe_allow_html=True)
