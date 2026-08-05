@@ -79,6 +79,11 @@ st.markdown("""
         color: #ff9800;
         border: 1px solid #ff980040;
     }
+    .status-badge.info {
+        background: #17a2b820;
+        color: #17a2b8;
+        border: 1px solid #17a2b840;
+    }
     .section-title {
         font-size: 1.4rem;
         font-weight: 600;
@@ -140,6 +145,8 @@ if 'admin_logged_in' not in st.session_state:
     st.session_state.admin_logged_in = False
 if 'retrain_success_time' not in st.session_state:
     st.session_state.retrain_success_time = None
+if 'last_retrain_status' not in st.session_state:
+    st.session_state.last_retrain_status = "Never"
 
 
 def get_indian_time():
@@ -208,10 +215,9 @@ with st.sidebar:
     
     feedback_count = get_feedback_count()
     if feedback_count >= 5:
-        st.success("Auto-retraining ready")
-        st.info(f"{feedback_count} feedback entries available")
+        st.success(f"✅ {feedback_count} feedback entries ready for retraining")
     else:
-        st.info(f"{feedback_count}/5 feedback needed for auto-retrain")
+        st.info(f"📝 {feedback_count}/5 feedback needed for auto-retrain")
     
     st.divider()
     
@@ -222,6 +228,7 @@ with st.sidebar:
                 if success:
                     current_time = get_indian_time()
                     st.session_state.retrain_success_time = current_time.strftime("%d-%m-%Y %H:%M:%S IST")
+                    st.session_state.last_retrain_status = f"Success at {st.session_state.retrain_success_time}"
                     st.success(f"Model retrained successfully at {st.session_state.retrain_success_time}")
                     time.sleep(1)
                     st.rerun()
@@ -246,11 +253,20 @@ with col1:
     """, unsafe_allow_html=True)
 
 with col2:
-    status_class = "success" if feedback_count >= 5 else "warning"
-    status_text = "Yes" if feedback_count >= 5 else "No"
+    # Show status based on feedback count and retrain history
+    if feedback_count >= 5:
+        status_class = "success"
+        status_text = "Ready for Retraining"
+    elif feedback_count > 0:
+        status_class = "warning"
+        status_text = f"Collecting ({feedback_count}/5)"
+    else:
+        status_class = "info"
+        status_text = "Waiting for Feedback"
+    
     st.markdown(f"""
     <div class="admin-metric">
-        <div class="label">Ready for Retraining</div>
+        <div class="label">Retraining Status</div>
         <div class="value"><span class="status-badge {status_class}">{status_text}</span></div>
     </div>
     """, unsafe_allow_html=True)
@@ -265,11 +281,14 @@ with col3:
     """, unsafe_allow_html=True)
 
 if feedback_count >= 5:
-    st.success(f"{feedback_count} feedback entries ready for retraining")
+    st.success(f"✅ {feedback_count} feedback entries ready for retraining!")
     st.progress(min(feedback_count / 10, 1.0))
-else:
-    st.info(f"{feedback_count}/5 feedback entries needed for retraining")
+elif feedback_count > 0:
+    st.info(f"📝 {feedback_count}/5 feedback entries needed for retraining")
     st.progress(feedback_count / 5)
+else:
+    st.info("📝 No feedback collected yet. Submit feedback from the main app to train the model.")
+    st.progress(0.0)
 
 st.divider()
 
