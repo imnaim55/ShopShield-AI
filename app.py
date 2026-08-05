@@ -238,6 +238,12 @@ if 'feedback_given' not in st.session_state:
     st.session_state.feedback_given = False
 if 'analyzed_url' not in st.session_state:
     st.session_state.analyzed_url = ""
+if 'clear_inputs' not in st.session_state:
+    st.session_state.clear_inputs = False
+if 'url_input_value' not in st.session_state:
+    st.session_state.url_input_value = ""
+if 'text_input_value' not in st.session_state:
+    st.session_state.text_input_value = ""
 
 
 def analyze_url(url):
@@ -346,36 +352,44 @@ with st.sidebar:
     
     st.markdown("### Input Analysis")
     
-    with st.form(key="analysis_form"):
-        url_input = st.text_input(
-            "Website URL",
-            placeholder="https://example.com",
-            key="url_input_main",
-            value=""
-        )
+    # Check if we need to clear inputs
+    if st.session_state.clear_inputs:
+        st.session_state.url_input_value = ""
+        st.session_state.text_input_value = ""
+        st.session_state.clear_inputs = False
+    
+    url_input = st.text_input(
+        "Website URL",
+        placeholder="https://example.com",
+        key="url_input_main",
+        value=st.session_state.url_input_value
+    )
 
-        text_input = st.text_area(
-            "Website Content",
-            height=120,
-            placeholder="Paste website text for dark pattern detection...",
-            key="text_input_main",
-            value=""
-        )
-        
-        submitted = st.form_submit_button("Analyze", width="stretch")
-        
-        if submitted:
-            has_url = url_input.strip()
-            has_text = text_input.strip()
-            if not has_url and not has_text:
-                st.warning("Please enter a URL or paste website content.")
-            else:
-                st.session_state.current_url = url_input if has_url else ""
-                st.session_state.current_text = text_input if has_text else ""
-                st.session_state.show_results = True
-                st.session_state.feedback_given = False
-                st.session_state.analyzed_url = url_input if has_url else ""
-                st.rerun()
+    text_input = st.text_area(
+        "Website Content",
+        height=120,
+        placeholder="Paste website text for dark pattern detection...",
+        key="text_input_main",
+        value=st.session_state.text_input_value
+    )
+    
+    analyze = st.button("Analyze", width="stretch", key="analyze_btn")
+    
+    if analyze:
+        has_url = url_input.strip()
+        has_text = text_input.strip()
+        if not has_url and not has_text:
+            st.warning("Please enter a URL or paste website content.")
+        else:
+            # Store the values for analysis
+            st.session_state.current_url = url_input if has_url else ""
+            st.session_state.current_text = text_input if has_text else ""
+            st.session_state.show_results = True
+            st.session_state.feedback_given = False
+            st.session_state.analyzed_url = url_input if has_url else ""
+            # Set flag to clear inputs on next rerun
+            st.session_state.clear_inputs = True
+            st.rerun()
 
     st.divider()
     
@@ -688,6 +702,7 @@ if st.session_state.page == 'main':
             st.session_state.feedback_success = None
             st.session_state.feedback_given = False
             st.session_state.analyzed_url = ""
+            st.session_state.clear_inputs = True
             st.rerun()
 
         st.markdown('<div class="footer">Developed by Naim Shaikh</div>', unsafe_allow_html=True)
