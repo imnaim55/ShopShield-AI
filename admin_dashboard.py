@@ -145,8 +145,6 @@ if 'admin_logged_in' not in st.session_state:
     st.session_state.admin_logged_in = False
 if 'retrain_success_time' not in st.session_state:
     st.session_state.retrain_success_time = None
-if 'last_retrain_status' not in st.session_state:
-    st.session_state.last_retrain_status = "Never"
 
 
 def get_indian_time():
@@ -228,7 +226,6 @@ with st.sidebar:
                 if success:
                     current_time = get_indian_time()
                     st.session_state.retrain_success_time = current_time.strftime("%d-%m-%Y %H:%M:%S IST")
-                    st.session_state.last_retrain_status = f"Success at {st.session_state.retrain_success_time}"
                     st.success(f"Model retrained successfully at {st.session_state.retrain_success_time}")
                     time.sleep(1)
                     st.rerun()
@@ -253,16 +250,15 @@ with col1:
     """, unsafe_allow_html=True)
 
 with col2:
-    # Show status based on feedback count and retrain history
     if feedback_count >= 5:
         status_class = "success"
-        status_text = "Ready for Retraining"
+        status_text = "Ready"
     elif feedback_count > 0:
         status_class = "warning"
         status_text = f"Collecting ({feedback_count}/5)"
     else:
         status_class = "info"
-        status_text = "Waiting for Feedback"
+        status_text = "Waiting"
     
     st.markdown(f"""
     <div class="admin-metric">

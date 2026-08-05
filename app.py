@@ -238,10 +238,6 @@ if 'feedback_given' not in st.session_state:
     st.session_state.feedback_given = False
 if 'analyzed_url' not in st.session_state:
     st.session_state.analyzed_url = ""
-if 'input_url' not in st.session_state:
-    st.session_state.input_url = ""
-if 'input_text' not in st.session_state:
-    st.session_state.input_text = ""
 
 
 def analyze_url(url):
@@ -340,8 +336,6 @@ with st.sidebar:
         if st.button("Analyzer", width="stretch"):
             st.session_state.page = 'main'
             st.session_state.show_results = False
-            st.session_state.input_url = ""
-            st.session_state.input_text = ""
             st.rerun()
     with col_nav2:
         if st.button("Admin", width="stretch"):
@@ -352,7 +346,6 @@ with st.sidebar:
     
     st.markdown("### Input Analysis")
     
-    # Use a form with no submit button to handle clearing
     with st.form(key="analysis_form", clear_on_submit=True):
         url_input = st.text_input(
             "Website URL",
@@ -381,9 +374,6 @@ with st.sidebar:
                 st.session_state.show_results = True
                 st.session_state.feedback_given = False
                 st.session_state.analyzed_url = has_url
-                # Clear the input values from session state
-                st.session_state.input_url = ""
-                st.session_state.input_text = ""
                 st.rerun()
 
     st.divider()
